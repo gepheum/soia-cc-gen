@@ -27,7 +27,6 @@ jobs:
       - run: npm ci
       - run: npm run format:check
       - run: npm run build
-      - run: npm run soiagen
       - name: Run e2e tests
         run: |
           cd e2e-test
