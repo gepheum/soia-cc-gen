@@ -1,0 +1,35 @@
+name: Soia Python Generator CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - uses: bazelbuild/setup-bazelisk@v3
+      - name: Mount bazel cache  # Optional
+        uses: actions/cache@v4
+        with:
+          path: "~/.cache/bazel"
+          key: bazel
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run build
+      - run: npm run soiagen
+      - name: Run e2e tests
+        run: |
+          cd e2e-test
+          npm run test
+          npm run copy-to-src:check

@@ -1,6 +1,9 @@
 {
   "scripts": {
-    "soiac": "soiac"
+    "copy-to-src": "cp soia.h ../client && cp soia.testing.h ../client",
+    "copy-to-src:check": "diff -s soia.h ../client/soia.h && diff -s soia.testing.h ../client/soia.testing.h",
+    "soiac": "soiac",
+    "test": "cd .. && npm run build && cd e2e-test && soiac && bazel test :soia.test && bazel test :soiagen.test"
   },
   "devDependencies": {
     "soiac": "^1.0.23"
