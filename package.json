@@ -1,11 +1,11 @@
 {
-  "name": "soia-python-gen",
+  "name": "soia-cc-gen",
   "version": "1.0.1",
   "description": "",
   "keywords": [],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/gepheum/soia-python-gen.git"
+    "url": "git+https://github.com/gepheum/soia-cc-gen.git"
   },
   "license": "ISC",
   "author": "Tyler Fibonacci <gepheum@gmail.com>",
@@ -23,8 +23,7 @@
   "scripts": {
     "build": "tsc",
     "format": "prettier --write \"**/*.ts\"",
-    "format:check": "prettier --check \"**/*.ts\"",
-    "soiagen": "npm run build && soiac -r ./e2e-test"
+    "format:check": "prettier --check \"**/*.ts\""
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
