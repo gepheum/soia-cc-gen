@@ -1,0 +1,37 @@
+{
+  "name": "soia-python-gen",
+  "version": "1.0.1",
+  "description": "",
+  "keywords": [],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/gepheum/soia-python-gen.git"
+  },
+  "license": "ISC",
+  "author": "Tyler Fibonacci <gepheum@gmail.com>",
+  "type": "module",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js"
+    }
+  },
+  "module": "./dist/index.js",
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "format": "prettier --write \"**/*.ts\"",
+    "format:check": "prettier --check \"**/*.ts\"",
+    "soiagen": "npm run build && soiac -r ./e2e-test"
+  },
+  "devDependencies": {
+    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
+    "@types/node": "^20.11.5",
+    "prettier": "^3.2.4",
+    "soiac": "^1.0.23",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.3.3"
+  }
+}

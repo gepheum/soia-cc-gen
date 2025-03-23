@@ -1,0 +1,16 @@
+npm run format && npm run build && cd e2e-test && npm run soiac && cd ..
+
+
+clang++ -Wall -std=c++14 example.h
+
+
+
+cmake -S . -B build
+cmake --build build
+cd build && ctest
+
+cmake -S . -B build && cmake --build build && cd build && ctest && cd ..
+
+
+
+

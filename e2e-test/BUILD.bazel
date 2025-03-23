@@ -1,0 +1,88 @@
+cc_library(
+    name = "soia",
+    srcs = ["soia.cc"],
+    hdrs = ["soia.h"],
+    deps = [
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log:absl_check",
+        "@abseil-cpp//absl/log:die_if_null",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:optional",
+        "@abseil-cpp//absl/types:variant",
+    ]
+)
+
+cc_test(
+    name = "soia.test",
+    size = "small",
+    srcs = ["soia.test.cc"],
+    deps = [
+        ":soia",
+        ":reserializer.testing",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)
+
+# TODO: rename
+cc_library(
+    name = "soia.testing",
+    testonly = True,
+    srcs = [],
+    hdrs = ["soia.testing.h"],
+    deps = [
+        ":soia",
+        "@abseil-cpp//absl/types:optional",
+        "@googletest//:gtest",
+    ]
+)
+
+# TODO: rename
+cc_library(
+    name = "reserializer.testing",
+    testonly = True,
+    hdrs = ["reserializer.testing.h"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:optional",
+    ]
+)
+
+cc_library(
+    name = "soiagen",
+    srcs = glob(["soiagen/**/*.cc"]),
+    hdrs = glob(["soiagen/**/*.h"]),
+    deps = [
+        ":soia",
+    ]
+)
+
+cc_test(
+    name = "soiagen.test",
+    size = "small",
+    srcs = ["soiagen.test.cc"],
+    deps = [
+        ":reserializer.testing",
+        ":soia.testing",
+        ":soia",
+        ":soiagen",
+        "@abseil-cpp//absl/container:flat_hash_set",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

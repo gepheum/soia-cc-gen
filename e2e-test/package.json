@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "soiac": "soiac"
+  },
+  "devDependencies": {
+    "soiac": "^1.0.23"
+  }
+}

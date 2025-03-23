@@ -1,0 +1,8 @@
+struct FullName {
+  removed;
+  first_name: string;
+  removed;
+  removed;
+  last_name: string;
+  removed;
+}

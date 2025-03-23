@@ -1,0 +1,7 @@
+.DS_Store
+MODULE.bazel.lock
+bazel-*
+dist
+node_modules
+soiagen
+tsconfig.tsbuildinfo
