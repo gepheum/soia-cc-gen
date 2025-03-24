@@ -529,6 +529,8 @@ class keyed_items {
       case SlotType::kUint64:
         return FindOrNull<uint64_t>(key, key_hash);
     }
+    // Can't happen.
+    return nullptr;
   }
 
   template <typename SlotIntType, typename K>
@@ -592,6 +594,8 @@ class keyed_items {
       case SlotType::kUint64:
         return capacity * kNumSlotsPerItem * 8;
     }
+    // Can't happen.
+    return -1;
   }
 
   friend class vector_mutator;
