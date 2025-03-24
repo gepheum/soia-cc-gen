@@ -2152,6 +2152,7 @@ absl::StatusOr<T> Parse(absl::string_view bytes_or_json,
   return result;
 }
 
+// Serializes the given value to dense JSON format.
 template <typename T>
 std::string ToDenseJson(const T& input) {
   static_assert(!std::is_pointer<T>::value,
@@ -2165,6 +2166,7 @@ inline std::string ToDenseJson(const char* input) {
   return ToDenseJson(std::string(input));
 }
 
+// Serializes the given value to readable JSON format.
 template <typename T>
 std::string ToReadableJson(const T& input) {
   static_assert(!std::is_pointer<T>::value,
@@ -2178,6 +2180,7 @@ inline std::string ToReadableJson(const char* input) {
   return ToReadableJson(std::string(input));
 }
 
+// Serializes the given value to binary format.
 template <typename T>
 ByteString ToBytes(const T& input) {
   static_assert(!std::is_pointer<T>::value, "Can't pass a pointer to ToBytes");

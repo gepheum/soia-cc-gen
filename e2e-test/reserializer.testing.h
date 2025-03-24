@@ -361,9 +361,11 @@ class Reserializer {
     }
 
     if (!identity_(*reserialized)) {
-      errors.Push("Parse(DenseJsonToBytes(ToDenseJson())) returned an error",
+      errors.Push("Parse(DenseJsonToBytes(ToDenseJson())) doesn't match",
                   {{"expected", soia_internal::ToDebugString(subject_)},
-                   {"actual", soia_internal::ToDebugString(*reserialized)}});
+                   {"actual", soia_internal::ToDebugString(*reserialized)},
+                   {"json", actual_dense_json},
+                   {"bytes", reserializer::BytesToHex(*bytes)}});
     }
   }
 

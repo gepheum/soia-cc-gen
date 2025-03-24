@@ -39,4 +39,4 @@ jobs:
         run: |
           cd e2e-test
           npm run test
-          npm run copy-to-src:check
+          npm run copy-to-client:check
