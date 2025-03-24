@@ -1,6 +1,6 @@
 srcDir: ./src
 
 generators:
-  - mod: ../../../../dist/index.js
+  - mod: ../../../dist/index.js
     config:
       writeGoogleTestHeaders: true
