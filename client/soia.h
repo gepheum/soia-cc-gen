@@ -2194,8 +2194,12 @@ inline ByteString ToBytes(const char* input) {
   return ToBytes(std::string(input));
 }
 
+// Minimum absl::Time encodable as a soia timestamp.
+// Equal to 100M days before the Unix EPOCH.
 constexpr absl::Time kMinEncodedTimestamp =
     absl::FromUnixMillis(-8640000000000000);
+// Maximum absl::Time encodable as a soia timestamp.
+// Equal to 100M days before the Unix EPOCH.
 constexpr absl::Time kMaxEncodedTimestamp =
     absl::FromUnixMillis(8640000000000000);
 

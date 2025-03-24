@@ -23,8 +23,8 @@
   ],
   "scripts": {
     "build": "tsc",
-    "copy-to-client": "cp e2e-test/soia.h client && cp e2e-test/soia.testing.h client",
-    "copy-to-client:check": "diff -s e2e-test/soia.h client/soia.h && diff -s e2e-test/soia.testing.h client/soia.testing.h",
+    "copy-to-client": "cp e2e-test/soia.h client && cp e2e-test/soia.cc client && cp e2e-test/soia.testing.h client",
+    "copy-to-client:check": "diff -s e2e-test/soia.h client/soia.h && diff -s e2e-test/soia.cc client/soia.cc && diff -s e2e-test/soia.testing.h client/soia.testing.h",
     "format": "prettier --write \"**/*.ts\"",
     "format:check": "prettier --check \"**/*.ts\"",
     "test": "npm run build && soiac --root=e2e-test && cd e2e-test && bazel test :all --test_output=errors && cd .."
