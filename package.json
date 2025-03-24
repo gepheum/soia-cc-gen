@@ -1,6 +1,6 @@
 {
   "name": "soia-cc-gen",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "",
   "keywords": [],
   "repository": {
@@ -22,8 +22,11 @@
   ],
   "scripts": {
     "build": "tsc",
+    "copy-to-src": "cp e2e-test/soia.h client && cp e2e-test/soia.testing.h client",
+    "copy-to-src:check": "diff -s e2e-test/soia.h client/soia.h && diff -s e2e-test/soia.testing.h client/soia.testing.h",
     "format": "prettier --write \"**/*.ts\"",
-    "format:check": "prettier --check \"**/*.ts\""
+    "format:check": "prettier --check \"**/*.ts\"",
+    "test": "npm run build && soiac --root=e2e-test && cd e2e-test && bazel test :all --test_output=errors"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",
