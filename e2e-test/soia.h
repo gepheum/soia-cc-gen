@@ -592,6 +592,8 @@ class keyed_items {
       case SlotType::kUint64:
         return capacity * kNumSlotsPerItem * 8;
     }
+    // Can't happen.
+    return -1;
   }
 
   friend class vector_mutator;

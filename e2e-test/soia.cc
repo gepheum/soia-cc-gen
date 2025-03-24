@@ -2142,14 +2142,16 @@ void UnrecognizedValues::ParseFrom(ByteSource& source) {
       case 3: {
         // 235
         if (source.num_bytes_left() < 1) return source.RaiseError();
-        bytes_.PushRange(source.pos - 1, source.pos += 1);
+        ++source.pos;
+        bytes_.PushRange(source.pos - 2, source.pos);
         break;
       }
       case 0:
       case 4: {
         // 232, 236
         if (source.num_bytes_left() < 2) return source.RaiseError();
-        bytes_.PushRange(source.pos - 1, source.pos += 2);
+        source.pos += 2;
+        bytes_.PushRange(source.pos - 3, source.pos);
         break;
       }
       case 1:
@@ -2157,7 +2159,8 @@ void UnrecognizedValues::ParseFrom(ByteSource& source) {
       case 8: {
         // 233, 237, 240
         if (source.num_bytes_left() < 4) return source.RaiseError();
-        bytes_.PushRange(source.pos - 1, source.pos += 4);
+        source.pos += 4;
+        bytes_.PushRange(source.pos - 5, source.pos);
         break;
       }
       case 2:
@@ -2166,7 +2169,8 @@ void UnrecognizedValues::ParseFrom(ByteSource& source) {
       case 9: {
         // 234, 238, 239, 241
         if (source.num_bytes_left() < 8) return source.RaiseError();
-        bytes_.PushRange(source.pos - 1, source.pos += 8);
+        source.pos += 8;
+        bytes_.PushRange(source.pos - 9, source.pos);
         break;
       }
       case 11:

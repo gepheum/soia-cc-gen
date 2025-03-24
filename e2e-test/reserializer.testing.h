@@ -250,6 +250,7 @@ class Reserializer {
     // Just to make sure that T has a hash function.
     absl::flat_hash_set<T> set;
     set.insert(subject_);
+    return absl::OkStatus();
   }
 
  private:
