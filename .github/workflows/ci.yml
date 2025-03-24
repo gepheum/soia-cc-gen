@@ -18,12 +18,14 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node-version }}
-      - uses: bazelbuild/setup-bazelisk@v3
-      - name: Mount bazel cache  # Optional
-        uses: actions/cache@v4
+      - uses: bazel-contrib/setup-bazel@0.14.0
         with:
-          path: "~/.cache/bazel"
-          key: bazel
+          # Avoid downloading Bazel every time.
+          bazelisk-cache: true
+          # Store build cache per workflow.
+          disk-cache: ${{ github.workflow }}
+          # Share repository cache between workflows.
+          repository-cache: true
       - run: npm ci
       - run: npm run format:check
       - run: npm run build
