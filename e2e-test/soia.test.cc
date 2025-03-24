@@ -561,8 +561,9 @@ TEST(SoialibTest, ReserializeInt32) {
       IsOk());
   EXPECT_THAT(MakeReserializer<int32_t>(65535).ExpectBytes("e8ffff").Check(),
               IsOk());
-  EXPECT_THAT(MakeReserializer<int32_t>(65536).ExpectBytes("e900000100").Check(),
-              IsOk());
+  EXPECT_THAT(
+      MakeReserializer<int32_t>(65536).ExpectBytes("e900000100").Check(),
+      IsOk());
 }
 
 TEST(SoialibTest, ReserializeInt64) {
@@ -606,8 +607,9 @@ TEST(SoialibTest, ReserializeInt64) {
       IsOk());
   EXPECT_THAT(MakeReserializer<int64_t>(65535).ExpectBytes("e8ffff").Check(),
               IsOk());
-  EXPECT_THAT(MakeReserializer<int64_t>(65536).ExpectBytes("e900000100").Check(),
-              IsOk());
+  EXPECT_THAT(
+      MakeReserializer<int64_t>(65536).ExpectBytes("e900000100").Check(),
+      IsOk());
   EXPECT_THAT(
       MakeReserializer<int64_t>(-2147483648).ExpectBytes("ed00000080").Check(),
       IsOk());
@@ -664,7 +666,8 @@ TEST(SoialibTest, ReserializeUint64) {
                   .AddAlternativeBytes("e90a000000")
                   .Check(),
               IsOk());
-  EXPECT_THAT(MakeReserializer<uint64_t>(231).ExpectBytes("e7").Check(), IsOk());
+  EXPECT_THAT(MakeReserializer<uint64_t>(231).ExpectBytes("e7").Check(),
+              IsOk());
   EXPECT_THAT(MakeReserializer<uint64_t>(232).ExpectBytes("e8e800").Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer<uint64_t>(65535).ExpectBytes("e8ffff").Check(),
