@@ -32,9 +32,10 @@ jobs:
       - name: Run clang-format style check for C/C++/Protobuf programs.
         uses: jidicula/clang-format-action@v4.15.0
         with:
-          clang-format-version: '20'
-          check-path: "e2e-test"
-          exclude-regex: "^soiagen/.*$"
+          clang-format-version: 20
+          check-path: e2e-test
+          exclude-regex: ^soiagen/.*$
+          fallback-style: Google
       - name: Run e2e tests
         run: |
           cd e2e-test
