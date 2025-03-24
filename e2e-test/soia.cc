@@ -2358,14 +2358,16 @@ void UnrecognizedValues::AppendTo(ByteSink& out) const {
         case 0:
         case 4: {
           // 232, 236
-          out.PushRangeUnsafe(source.pos, source.pos += 3);
+          const uint8_t* start = source.pos;
+          out.PushRangeUnsafe(start, source.pos += 3);
           break;
         }
         case 1:
         case 5:
         case 8: {
           // 233, 237, 240
-          out.PushRangeUnsafe(source.pos, source.pos += 5);
+          const uint8_t* start = source.pos;
+          out.PushRangeUnsafe(start, source.pos += 5);
           break;
         }
         case 2:
@@ -2373,12 +2375,14 @@ void UnrecognizedValues::AppendTo(ByteSink& out) const {
         case 7:
         case 9: {
           // 234, 238, 239, 241
-          out.PushRangeUnsafe(source.pos, source.pos += 9);
+          const uint8_t* start = source.pos;
+          out.PushRangeUnsafe(start, source.pos += 9);
           break;
         }
         case 3: {
           // 235
-          out.PushRangeUnsafe(source.pos, source.pos += 2);
+          const uint8_t* start = source.pos;
+          out.PushRangeUnsafe(start, source.pos += 2);
           break;
         }
         case 10:

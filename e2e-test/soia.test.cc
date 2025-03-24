@@ -485,7 +485,7 @@ std::vector<int> RepeatVec(int item, int times) {
   if (times <= 0) return {};
   std::vector<int> result;
   result.reserve(times);
-  for (size_t i = 0; i < times; ++i) {
+  for (int i = 0; i < times; ++i) {
     result.push_back(item);
   }
   return result;

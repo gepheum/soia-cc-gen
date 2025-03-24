@@ -529,6 +529,8 @@ class keyed_items {
       case SlotType::kUint64:
         return FindOrNull<uint64_t>(key, key_hash);
     }
+    // Can't happen.
+    return nullptr;
   }
 
   template <typename SlotIntType, typename K>
