@@ -1091,6 +1091,7 @@ class CcLibFilesGenerator {
       );
     }
     header.mainMiddle.push("    }");
+    header.mainMiddle.push("    ABSL_CHECK(false);");
     header.mainMiddle.push("  }");
     header.mainMiddle.push("");
     header.mainMiddle.push(

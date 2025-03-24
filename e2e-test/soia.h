@@ -519,11 +519,9 @@ class keyed_items {
         return FindOrNull<uint16_t>(key, key_hash);
       case SlotType::kUint32:
         return FindOrNull<uint32_t>(key, key_hash);
-      case SlotType::kUint64:
+      default:
         return FindOrNull<uint64_t>(key, key_hash);
     }
-    // Can't happen.
-    return nullptr;
   }
 
   template <typename SlotIntType, typename K>
@@ -584,11 +582,9 @@ class keyed_items {
           return std::numeric_limits<uint32_t>::max();
         }
         return capacity * kNumSlotsPerItem * 4;
-      case SlotType::kUint64:
+      default:
         return capacity * kNumSlotsPerItem * 8;
     }
-    // Can't happen.
-    return -1;
   }
 
   friend class vector_mutator;
