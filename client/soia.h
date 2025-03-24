@@ -314,18 +314,12 @@ class keyed_items {
     PutSlot(key_hash, next_index, slot_type_);
   }
 
-  void append_range(const keyed_items<T, GetKey>& rg) {
-    append_range_impl(rg);
-  }
+  void append_range(const keyed_items<T, GetKey>& rg) { append_range_impl(rg); }
   void append_range(keyed_items<T, GetKey>&& rg) {
     append_range_impl(std::move(rg));
   }
-  void append_range(const std::vector<T>& rg) {
-    append_range_impl(rg);
-  }
-  void append_range(std::vector<T>&& rg) {
-    append_range_impl(std::move(rg));
-  }
+  void append_range(const std::vector<T>& rg) { append_range_impl(rg); }
+  void append_range(std::vector<T>&& rg) { append_range_impl(std::move(rg)); }
 
   void swap(keyed_items& other) noexcept {
     ABSL_CHECK(!being_mutated_);
@@ -462,8 +456,7 @@ class keyed_items {
     }
   }
 
-  void PutSlot(uint32_t key_hash, size_t next_index,
-                      SlotType slot_type) {
+  void PutSlot(uint32_t key_hash, size_t next_index, SlotType slot_type) {
     switch (slot_type) {
       case SlotType::kUint8:
         PutSlot<uint8_t>(key_hash, next_index);
@@ -2198,8 +2191,10 @@ inline ByteString ToBytes(const char* input) {
   return ToBytes(std::string(input));
 }
 
-constexpr absl::Time kMinEncodedTimestamp = absl::FromUnixMillis(-8640000000000000);
-constexpr absl::Time kMaxEncodedTimestamp = absl::FromUnixMillis(8640000000000000);
+constexpr absl::Time kMinEncodedTimestamp =
+    absl::FromUnixMillis(-8640000000000000);
+constexpr absl::Time kMaxEncodedTimestamp =
+    absl::FromUnixMillis(8640000000000000);
 
 namespace reflection {
 

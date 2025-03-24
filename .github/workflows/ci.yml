@@ -35,7 +35,6 @@ jobs:
           clang-format-version: 20
           check-path: e2e-test
           exclude-regex: ^soiagen/.*$
-          fallback-style: Google
       - name: Run e2e tests
         run: |
           cd e2e-test
