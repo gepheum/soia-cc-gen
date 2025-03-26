@@ -17,6 +17,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 
@@ -2490,6 +2491,32 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
   } else {
     SkipValues(source, array_len - num_slots);
   }
+}
+
+const std::string& GetHttpContentType(absl::string_view content) {
+  if (absl::StartsWith(content, "soia")) {
+    static const auto* kContentType =
+        new std::string("application/octet-stream");
+    return *kContentType;
+  } else {
+    static const auto* kContentType = new std::string("application/json");
+    return *kContentType;
+  }
+}
+
+absl::StatusOr<
+    std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
+SplitRequestData(absl::string_view request_data) {
+  const std::vector<absl::string_view> parts =
+      absl::StrSplit(request_data, absl::MaxSplits(':', 3));
+  if (parts.size() != 4) {
+    return absl::InvalidArgumentError("Invalid request format");
+  }
+  int method_number = 0;
+  if (!absl::SimpleAtoi(parts[1], &method_number)) {
+    return absl::InvalidArgumentError("Can't parse method number");
+  }
+  return std::make_tuple(parts[0], method_number, parts[2], parts[3]);
 }
 
 }  // namespace soia_internal

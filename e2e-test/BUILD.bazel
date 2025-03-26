@@ -1,8 +1,21 @@
 cc_library(
+    name = "reserializer.testing",
+    testonly = True,
+    hdrs = ["reserializer.testing.h"],
+    deps = [
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/types:optional",
+    ],
+)
+
+cc_library(
     name = "soia",
     srcs = ["soia.cc"],
     hdrs = ["soia.h"],
     deps = [
+        "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/hash",
         "@abseil-cpp//absl/log:absl_check",
@@ -13,7 +26,7 @@ cc_library(
         "@abseil-cpp//absl/time",
         "@abseil-cpp//absl/types:optional",
         "@abseil-cpp//absl/types:variant",
-    ]
+    ],
 )
 
 cc_test(
@@ -33,7 +46,6 @@ cc_test(
     ],
 )
 
-# TODO: rename
 cc_library(
     name = "soia.testing",
     testonly = True,
@@ -43,20 +55,7 @@ cc_library(
         ":soia",
         "@abseil-cpp//absl/types:optional",
         "@googletest//:gtest",
-    ]
-)
-
-# TODO: rename
-cc_library(
-    name = "reserializer.testing",
-    testonly = True,
-    hdrs = ["reserializer.testing.h"],
-    deps = [
-        "@abseil-cpp//absl/status",
-        "@abseil-cpp//absl/status:statusor",
-        "@abseil-cpp//absl/strings",
-        "@abseil-cpp//absl/types:optional",
-    ]
+    ],
 )
 
 cc_library(
@@ -65,7 +64,7 @@ cc_library(
     hdrs = glob(["soiagen/**/*.h"]),
     deps = [
         ":soia",
-    ]
+    ],
 )
 
 cc_test(

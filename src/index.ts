@@ -1758,6 +1758,9 @@ class CcLibFilesGenerator {
     mainMiddle.push(`struct ${methodName} {`);
     mainMiddle.push(`  using request_type = ${requestType};`);
     mainMiddle.push(`  using response_type = ${responseType};`);
+    mainMiddle.push(
+      `  static constexpr absl::string_view kMethodName = "${methodName}";`,
+    );
     mainMiddle.push(`  static constexpr int kNumber = ${method.number};`);
     mainMiddle.push("};");
     mainMiddle.push("");

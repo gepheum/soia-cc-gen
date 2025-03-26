@@ -503,6 +503,8 @@ TEST(SoiagenTest, Methods) {
                                soiagen_enums::JsonValue>);
   constexpr int kNumber = MyProcedure::kNumber;
   EXPECT_EQ(kNumber, 1974132327);
+  constexpr absl::string_view kMethodName = MyProcedure::kMethodName;
+  EXPECT_EQ(kMethodName, "MyProcedure");
 }
 
 TEST(SoiagenTest, NestedRecordAlias) {
