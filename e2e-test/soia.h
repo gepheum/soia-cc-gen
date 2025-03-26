@@ -2292,6 +2292,29 @@ absl::StatusOr<
     std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
 SplitRequestData(absl::string_view request_data);
 
+struct MethodDescriptor {
+  absl::string_view name;
+  int number = 0;
+  std::string request_descriptor_json;
+  std::string response_descriptor_json;
+};
+
+template <typename Method>
+MethodDescriptor MakeMethodDescriptor(Method method) {
+  MethodDescriptor result;
+  result.name = Method::kMethodName;
+  result.number = Method::kNumber;
+  result.request_descriptor_json =
+      soia::reflection::GetTypeDescriptor<typename Method::request_type>()
+          .AsJson();
+  result.response_descriptor_json =
+      soia::reflection::GetTypeDescriptor<typename Method::response_type>()
+          .AsJson();
+  return result;
+}
+
+std::string MethodListToJson(const std::vector<MethodDescriptor>&);
+
 template <typename ApiImpl, typename ProtocolRequest, typename ProtocolResponse>
 struct HandleRequestOp {
   ApiImpl& api_impl;
@@ -2305,6 +2328,16 @@ struct HandleRequestOp {
   absl::optional<soia::api::HandleRequestResult> result;
 
   soia::api::HandleRequestResult Run() {
+    if (request_data == "list") {
+      std::vector<MethodDescriptor> method_descriptors;
+      std::apply(
+          [&](auto... method) {
+            (method_descriptors.push_back(MakeMethodDescriptor(method)), ...);
+          },
+          typename ApiImpl::methods_type());
+      return soia::api::HandleRequestResult{
+          MethodListToJson(method_descriptors)};
+    }
     const auto parts = SplitRequestData(request_data);
     if (!parts.ok()) {
       return {parts.status(), true};
@@ -2384,6 +2417,8 @@ void MountApiToHttplibServer(HttplibServer& server, absl::string_view pathname,
           req.get_param_value("method"), ":", req.get_param_value("m"), ":",
           req.get_param_value("f"), ":", req.get_param_value("req"));
       request_data = request_data_str;
+    } else if (req.has_param("list")) {
+      request_data = "list";
     } else {
       request_data = req.body;
     }

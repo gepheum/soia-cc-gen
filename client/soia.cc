@@ -17,6 +17,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
+#include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
@@ -2517,6 +2518,22 @@ SplitRequestData(absl::string_view request_data) {
     return absl::InvalidArgumentError("Can't parse method number");
   }
   return std::make_tuple(parts[0], method_number, parts[2], parts[3]);
+}
+
+std::string MethodListToJson(const std::vector<MethodDescriptor>& methods) {
+  std::string result = "[";
+  for (size_t i = 0; i < methods.size(); ++i) {
+    const MethodDescriptor& method = methods[i];
+    absl::StrAppend(
+        &result, (i == 0 ? "" : ","), "\n  {\n    \"method\": \"", method.name,
+        "\",\n    \"number\": ", method.number, ",\n    \"request\": ",
+        absl::StrReplaceAll(method.request_descriptor_json, {{"\n", "\n    "}}),
+        ",\n    \"response\": ",
+        absl::StrReplaceAll(method.response_descriptor_json,
+                            {{"\n", "\n    "}}),
+        "\n  }");
+  }
+  return result += methods.empty() ? "]" : "\n]";
 }
 
 }  // namespace soia_internal
