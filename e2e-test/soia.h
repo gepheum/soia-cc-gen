@@ -2328,18 +2328,16 @@ std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 template <typename ApiImpl, typename Method, typename Request,
           typename Response>
 absl::StatusOr<typename Method::output_type> InvokeMethod(
-    ApiImpl& api_impl, Method method,
-    const typename Method::input_type& input, const Request& request,
-    Response& response) {
+    ApiImpl& api_impl, Method method, const typename Method::input_type& input,
+    const Request& request, Response& response) {
   return api_impl(method, input, request, response);
 }
 
 // Called if Request is absl::nullopt.
 template <typename ApiImpl, typename Method, typename Response>
 absl::StatusOr<typename Method::output_type> InvokeMethod(
-    ApiImpl& api_impl, Method method,
-    const typename Method::input_type& input, const absl::nullopt_t& request,
-    Response& response) {
+    ApiImpl& api_impl, Method method, const typename Method::input_type& input,
+    const absl::nullopt_t& request, Response& response) {
   return api_impl(method, input, response);
 }
 
@@ -2401,14 +2399,13 @@ struct HandleRequestOp {
     using OutputType = typename MethodType::output_type;
     if (MethodType::kNumber != method_number) return;
     result.emplace();
-    absl::StatusOr<InputType> input =
-        soia::Parse<InputType>(request_data);
+    absl::StatusOr<InputType> input = soia::Parse<InputType>(request_data);
     if (!input.ok()) {
       result->response_data = std::move(input.status());
       return;
     }
-    absl::StatusOr<OutputType> output = InvokeMethod(
-        api_impl, method, *input, request, response);
+    absl::StatusOr<OutputType> output =
+        InvokeMethod(api_impl, method, *input, request, response);
     if (!output.ok()) {
       result->response_data = std::move(output.status());
       return;
@@ -2464,8 +2461,7 @@ namespace api {
 template <typename ApiImpl, typename Request, typename Response>
 HandleRequestResult HandleRequest(ApiImpl& api_impl,
                                   absl::string_view request_data,
-                                  const Request& request,
-                                  Response& response) {
+                                  const Request& request, Response& response) {
   soia_internal::assert_unique_method_numbers<typename ApiImpl::methods_type>();
   return soia_internal::HandleRequestOp(&api_impl, request_data, &request,
                                         &response)

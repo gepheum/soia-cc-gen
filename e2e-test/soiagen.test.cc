@@ -498,8 +498,8 @@ TEST(SoiagenTest, Constants) {
 
 TEST(SoiagenTest, Methods) {
   using ::soiagen_methods::MyProcedure;
-  static_assert(std::is_same_v<typename MyProcedure::input_type,
-                               soiagen_structs::Point>);
+  static_assert(
+      std::is_same_v<typename MyProcedure::input_type, soiagen_structs::Point>);
   static_assert(std::is_same_v<typename MyProcedure::output_type,
                                soiagen_enums::JsonValue>);
   constexpr int kNumber = MyProcedure::kNumber;
