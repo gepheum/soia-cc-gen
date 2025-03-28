@@ -1,8 +1,7 @@
 // Soia client library for testing
-// Version 1.1.0
 
-#ifndef SOIA_TESTING_H
-#define SOIA_TESTING_H
+#ifndef SOIA_SOIA_TESTING_H
+#define SOIA_SOIA_TESTING_H
 
 #include <gtest/gtest.h>
 
@@ -10,6 +9,10 @@
 #include <string>
 #include <utility>
 #include <vector>
+
+#include "absl/base/nullability.h"
+#include "absl/log/die_if_null.h"
+#include "soia.h"
 
 namespace testing {
 namespace soiagen {
@@ -236,7 +239,42 @@ EnumValueIsMatcher<Option, InnerMatcher> EnumValueIs(InnerMatcher matcher) {
   return EnumValueIsMatcher<Option, InnerMatcher>(std::move(matcher));
 }
 
+template <typename FakeOrMockApiImpl>
+class ApiClientForTesting : public ::soia::api::ApiClient {
+ public:
+  explicit ApiClientForTesting(FakeOrMockApiImpl* api_impl)
+      : api_impl_(*ABSL_DIE_IF_NULL(api_impl)) {}
+
+  ~ApiClientForTesting() override = default;
+
+  Response operator()(absl::string_view request_data) const override {
+    int status_code = 0;
+    ::soia::api::HandleRequestResult result = ::soia::api::HandleRequest(
+        api_impl_, request_data, absl::nullopt, status_code);
+    return {
+        .data = std::move(result.response_data),
+        .status_code = status_code,
+    };
+  }
+
+ private:
+  FakeOrMockApiImpl& api_impl_;
+};
+
 }  // namespace soia_internal
 }  // namespace testing
+
+namespace soia {
+namespace api {
+
+template <typename FakeOrMockApiImpl>
+std::unique_ptr<::soia::api::ApiClient> MakeApiClientForTesting(
+    absl::Nonnull<FakeOrMockApiImpl*> api_impl) {
+  return std::make_unique<
+      testing::soia_internal::ApiClientForTesting<FakeOrMockApiImpl>>(api_impl);
+}
+
+}  // namespace api
+}  // namespace soia
 
 #endif

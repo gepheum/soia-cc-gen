@@ -1,8 +1,7 @@
 // Soia client library
-// Version 1.1.0
 
-#ifndef SOIA_H
-#define SOIA_H
+#ifndef SOIA_SOIA_H_VERSION
+#define SOIA_SOIA_H_VERSION 20250327
 
 #include <algorithm>
 #include <cmath>
@@ -843,8 +842,19 @@ struct HandleRequestResult {
   bool illformed_request = false;
 };
 
-}  // namespace api
+class ApiClient {
+ public:
+  virtual ~ApiClient() = default;
 
+  struct Response {
+    absl::StatusOr<std::string> data;
+    // Application-specific status code, most likely an HTTP status code.
+    int status_code = 0;
+  };
+  virtual Response operator()(absl::string_view request_data) const = 0;
+};
+
+}  // namespace api
 }  // namespace soia
 
 namespace soia_internal {
@@ -2305,27 +2315,42 @@ MethodDescriptor MakeMethodDescriptor(Method method) {
   result.name = Method::kMethodName;
   result.number = Method::kNumber;
   result.request_descriptor_json =
-      soia::reflection::GetTypeDescriptor<typename Method::request_type>()
+      soia::reflection::GetTypeDescriptor<typename Method::input_type>()
           .AsJson();
   result.response_descriptor_json =
-      soia::reflection::GetTypeDescriptor<typename Method::response_type>()
+      soia::reflection::GetTypeDescriptor<typename Method::output_type>()
           .AsJson();
   return result;
 }
 
 std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 
-template <typename ApiImpl, typename ProtocolRequest, typename ProtocolResponse>
+template <typename ApiImpl, typename Method, typename Request,
+          typename Response>
+absl::StatusOr<typename Method::output_type> InvokeMethod(
+    ApiImpl& api_impl, Method method,
+    const typename Method::input_type& input, const Request& request,
+    Response& response) {
+  return api_impl(method, input, request, response);
+}
+
+// Called if Request is absl::nullopt.
+template <typename ApiImpl, typename Method, typename Response>
+absl::StatusOr<typename Method::output_type> InvokeMethod(
+    ApiImpl& api_impl, Method method,
+    const typename Method::input_type& input, const absl::nullopt_t& request,
+    Response& response) {
+  return api_impl(method, input, response);
+}
+
+template <typename ApiImpl, typename Request, typename Response>
 struct HandleRequestOp {
-  ApiImpl& api_impl;
-  absl::string_view request_data;
-  const ProtocolRequest& protocol_request;
-  ProtocolResponse& protocol_response;
-
-  int method_number = 0;
-  absl::string_view format;
-
-  absl::optional<soia::api::HandleRequestResult> result;
+  HandleRequestOp(ApiImpl* api_impl, absl::string_view request_data,
+                  const Request* request, Response* response)
+      : api_impl(*api_impl),
+        request_data(request_data),
+        request(*request),
+        response(*response) {}
 
   soia::api::HandleRequestResult Run() {
     if (request_data == "list") {
@@ -2354,37 +2379,81 @@ struct HandleRequestOp {
     if (result.has_value()) {
       return {std::move(*result)};
     }
-    return {absl::InvalidArgumentError(absl::StrCat(
-        "Method not found: ", method_name, "; number: ", method_number))};
+    return {absl::UnknownError(absl::StrCat("Method not found: ", method_name,
+                                            "; number: ", method_number)),
+            true};
   }
+
+ private:
+  ApiImpl& api_impl = nullptr;
+  absl::string_view request_data;
+  const Request& request = nullptr;
+  Response& response = nullptr;
+  int method_number = 0;
+  absl::string_view format;
+
+  absl::optional<soia::api::HandleRequestResult> result;
 
   template <typename Method>
   void MaybeInvokeMethod(Method method) {
     using MethodType = decltype(method);
-    using RequestType = typename MethodType::request_type;
-    using ResponseType = typename MethodType::response_type;
+    using InputType = typename MethodType::input_type;
+    using OutputType = typename MethodType::output_type;
     if (MethodType::kNumber != method_number) return;
     result.emplace();
-    absl::StatusOr<RequestType> request =
-        soia::Parse<RequestType>(request_data);
-    if (!request.ok()) {
-      result->response_data = std::move(request.status());
+    absl::StatusOr<InputType> input =
+        soia::Parse<InputType>(request_data);
+    if (!input.ok()) {
+      result->response_data = std::move(input.status());
       return;
     }
-    const absl::StatusOr<ResponseType> response =
-        api_impl(method, *request, protocol_request, protocol_response);
-    if (!response.ok()) {
-      result->response_data = std::move(response.status());
+    absl::StatusOr<OutputType> output = InvokeMethod(
+        api_impl, method, *input, request, response);
+    if (!output.ok()) {
+      result->response_data = std::move(output.status());
       return;
     }
     if (format == "readable") {
-      result->response_data = soia::ToReadableJson(*response);
+      result->response_data = soia::ToReadableJson(*output);
     } else if (format == "binary") {
-      result->response_data = soia::ToBytes(*response).as_string();
+      result->response_data = soia::ToBytes(*output).as_string();
     } else {
-      result->response_data = soia::ToDenseJson(*response);
+      result->response_data = soia::ToDenseJson(*output);
     }
   }
+};
+
+template <typename HttplibClientPtr>
+class HttplibApiClient : public soia::api::ApiClient {
+ public:
+  HttplibApiClient(HttplibClientPtr client, std::string pathname)
+      : client_(std::move(ABSL_DIE_IF_NULL(client))), pathname_(pathname) {}
+
+  Response operator()(absl::string_view request_data) const {
+    const std::string& content_type =
+        soia_internal::GetHttpContentType(request_data);
+    auto response = client_->Post(pathname_, request_data.data(),
+                                  request_data.length(), content_type);
+    if (response) {
+      const int http_status = response->status;
+      if (soia_internal::IsOkHttpStatus(http_status)) {
+        return {std::move(response->body), http_status};
+      } else {
+        return {absl::UnknownError(
+                    absl::StrCat("status ", http_status, ": ", response->body)),
+                http_status};
+      }
+    } else {
+      // Error status.
+      std::stringstream ss;
+      ss << "HTTP error: " << response.error();
+      return {absl::UnknownError(ss.str())};
+    }
+  }
+
+ private:
+  HttplibClientPtr client_;
+  const std::string pathname_;
 };
 
 }  // namespace soia_internal
@@ -2392,15 +2461,14 @@ struct HandleRequestOp {
 namespace soia {
 namespace api {
 
-template <typename ApiImpl, typename ProtocolRequest, typename ProtocolResponse>
+template <typename ApiImpl, typename Request, typename Response>
 HandleRequestResult HandleRequest(ApiImpl& api_impl,
                                   absl::string_view request_data,
-                                  const ProtocolRequest& protocol_request,
-                                  ProtocolResponse& protocol_response) {
+                                  const Request& request,
+                                  Response& response) {
   soia_internal::assert_unique_method_numbers<typename ApiImpl::methods_type>();
-  return soia_internal::HandleRequestOp<ApiImpl, ProtocolRequest,
-                                        ProtocolResponse>{
-      api_impl, request_data, protocol_request, protocol_response}
+  return soia_internal::HandleRequestOp(&api_impl, request_data, &request,
+                                        &response)
       .Run();
 }
 
@@ -2408,101 +2476,75 @@ template <typename HttplibServer, typename ApiImpl>
 void MountApiToHttplibServer(HttplibServer& server, absl::string_view pathname,
                              absl::Nonnull<ApiImpl*> api_impl) {
   ABSL_CHECK_NE(api_impl, nullptr);
-  const typename HttplibServer::Handler handler = [api_impl](const auto& req,
-                                                             auto& res) {
-    absl::string_view request_data;
-    std::string request_data_str;
-    if (req.has_param("m")) {
-      request_data_str = absl::StrCat(
-          req.get_param_value("method"), ":", req.get_param_value("m"), ":",
-          req.get_param_value("f"), ":", req.get_param_value("req"));
-      request_data = request_data_str;
-    } else if (req.has_param("list")) {
-      request_data = "list";
-    } else {
-      request_data = req.body;
-    }
-    HandleRequestResult handle_request_result =
-        HandleRequest(*api_impl, request_data, req, res);
-    absl::StatusOr<std::string>& response_data =
-        handle_request_result.response_data;
-    if (response_data.ok()) {
-      const std::string& content_type =
-          soia_internal::GetHttpContentType(*response_data);
-      res.set_content(*std::move(response_data), content_type);
-    } else {
-      if (soia_internal::IsOkHttpStatus(res.status)) {
-        res.status = static_cast<int>(
-            handle_request_result.illformed_request
-                ? soia_internal::HttpStatusCode::kBadRequest_400
-                : soia_internal::HttpStatusCode::kInternalServerError_500);
-      }
-      const absl::string_view message = response_data.status().message();
-      res.set_content(message.data(), message.length(), "text/plain");
-    }
-  };
+  const typename HttplibServer::Handler handler =  //
+      [api_impl](const auto& req, auto& res) {
+        absl::string_view request_data;
+        std::string request_data_str;
+        if (req.has_param("m")) {
+          request_data_str = absl::StrCat(
+              req.get_param_value("method"), ":", req.get_param_value("m"), ":",
+              req.get_param_value("f"), ":", req.get_param_value("req"));
+          request_data = request_data_str;
+        } else if (req.has_param("list")) {
+          request_data = "list";
+        } else {
+          request_data = req.body;
+        }
+        HandleRequestResult handle_request_result =
+            HandleRequest(*api_impl, request_data, req, res);
+        absl::StatusOr<std::string>& response_data =
+            handle_request_result.response_data;
+        if (response_data.ok()) {
+          const std::string& content_type =
+              soia_internal::GetHttpContentType(*response_data);
+          res.set_content(*std::move(response_data), content_type);
+        } else {
+          if (soia_internal::IsOkHttpStatus(res.status)) {
+            res.status = static_cast<int>(
+                handle_request_result.illformed_request
+                    ? soia_internal::HttpStatusCode::kBadRequest_400
+                    : soia_internal::HttpStatusCode::kInternalServerError_500);
+          }
+          const absl::string_view message = response_data.status().message();
+          res.set_content(message.data(), message.length(), "text/plain");
+        }
+      };
   server.Get(std::string(pathname), handler);
   server.Post(std::string(pathname), handler);
 }
 
-template <typename Method, typename ApiClient>
-absl::StatusOr<typename Method::response_type> InvokeRemote(
+template <typename Method>
+absl::StatusOr<typename Method::output_type> InvokeRemote(
     const ApiClient& api_client, Method method,
-    const typename Method::request_type& request,
-    typename ApiClient::response_type* response = nullptr) {
+    const typename Method::input_type& input, int* status_code = nullptr) {
   const std::string request_data = absl::StrCat(
-      Method::kMethodName, ":", Method::kNumber, "::", ToDenseJson(request));
-  absl::StatusOr<std::string> response_data;
-  if (response != nullptr) {
-    response_data = api_client(request_data, *response);
-  } else {
-    typename ApiClient::response_type resp;
-    response_data = api_client(request_data, resp);
+      Method::kMethodName, ":", Method::kNumber, "::", ToDenseJson(input));
+  ApiClient::Response response = api_client(request_data);
+  if (status_code != nullptr) {
+    *status_code = response.status_code;
   }
-  if (!response_data.ok()) {
-    return response_data.status();
+  if (!response.data.ok()) {
+    return std::move(response.data).status();
   }
-  return Parse<typename Method::response_type>(*response_data);
+  return Parse<typename Method::output_type>(*response.data);
 }
 
 template <typename HttplibClient>
-class HttplibApiClient {
- public:
-  HttplibApiClient(absl::Nonnull<HttplibClient*> client, std::string pathname)
-      : client_(*ABSL_DIE_IF_NULL(client)), pathname_(pathname) {}
+std::unique_ptr<ApiClient> MakeHttplibApiClient(
+    absl::Nonnull<HttplibClient*> client, std::string pathname) {
+  return std::make_unique<soia_internal::HttplibApiClient<HttplibClient*>>(
+      client, std::move(pathname));
+};
 
-  using response_type =
-      decltype(std::declval<HttplibClient>().Get(std::string()));
-
-  absl::StatusOr<std::string> operator()(absl::string_view request_data,
-                                         response_type& response) const {
-    const std::string& content_type =
-        soia_internal::GetHttpContentType(request_data);
-    response = client_.Post(pathname_, request_data.data(),
-                            request_data.length(), content_type);
-    if (response) {
-      const int http_status = response->status;
-      if (soia_internal::IsOkHttpStatus(http_status)) {
-        return response->body;
-      } else {
-        return absl::UnknownError(
-            absl::StrCat("status ", http_status, ": ", response->body));
-      }
-    } else {
-      // Error status.
-      std::stringstream ss;
-      ss << "HTTP error: " << response.error();
-      return absl::UnknownError(ss.str());
-    }
-  }
-
- private:
-  HttplibClient& client_;
-  const std::string pathname_;
+template <typename HttplibClient>
+std::unique_ptr<ApiClient> MakeHttplibApiClient(
+    std::unique_ptr<HttplibClient> client, std::string pathname) {
+  return std::make_unique<
+      soia_internal::HttplibApiClient<std::unique_ptr<HttplibClient>>>(
+      std::make_unique<client>, std::move(pathname));
 };
 
 }  // namespace api
-
 }  // namespace soia
 
 #endif

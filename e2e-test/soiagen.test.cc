@@ -25,6 +25,7 @@
 
 namespace {
 using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
 using ::soia_testing_internal::MakeReserializer;
 using ::soiagen_enums::EmptyEnum;
 using ::soiagen_enums::JsonValue;
@@ -497,9 +498,9 @@ TEST(SoiagenTest, Constants) {
 
 TEST(SoiagenTest, Methods) {
   using ::soiagen_methods::MyProcedure;
-  static_assert(std::is_same_v<typename MyProcedure::request_type,
+  static_assert(std::is_same_v<typename MyProcedure::input_type,
                                soiagen_structs::Point>);
-  static_assert(std::is_same_v<typename MyProcedure::response_type,
+  static_assert(std::is_same_v<typename MyProcedure::output_type,
                                soiagen_enums::JsonValue>);
   constexpr int kNumber = MyProcedure::kNumber;
   EXPECT_EQ(kNumber, 1974132327);
@@ -597,6 +598,56 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
   soia::reflection::ForEachField<FullName>(collector);
   EXPECT_THAT(collector.field_names,
               UnorderedElementsAre("first_name", "last_name"));
+}
+
+TEST(SoialibTest, SoiaApi) {
+  class FakeApiImpl {
+   public:
+    using methods_type = std::tuple<soiagen_methods::MyProcedure,
+                                    soiagen_methods::WithExplicitNumber>;
+
+    ::soiagen_enums::JsonValue operator()(soiagen_methods::MyProcedure,
+                                          const ::soiagen_structs::Point& input,
+                                          int& status_code) {
+      return ::soiagen_enums::JsonValue::wrap_number(input.x);
+    }
+
+    absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> operator()(
+        soiagen_methods::WithExplicitNumber,
+        const std::vector<::soiagen_structs::Point>& input,
+        int& status_code) const {
+      if (input.empty()) {
+        return absl::UnknownError("no point");
+      }
+      return absl::nullopt;
+    }
+  };
+
+  FakeApiImpl api_impl;
+  std::unique_ptr<soia::api::ApiClient> api_client =
+      soia::api::MakeApiClientForTesting<FakeApiImpl>(&api_impl);
+
+  {
+    const absl::StatusOr<::soiagen_enums::JsonValue> result =
+        ::soia::api::InvokeRemote(*api_client, soiagen_methods::MyProcedure(),
+                                  soiagen_structs::Point{.x = 1, .y = 2});
+    EXPECT_THAT(result,
+                IsOkAndHolds(::soiagen_enums::JsonValue::wrap_number(1.0)));
+  }
+
+  {
+    const absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> result =
+        ::soia::api::InvokeRemote(*api_client,
+                                  soiagen_methods::WithExplicitNumber(), {});
+    EXPECT_EQ(result.status(), absl::UnknownError("no point"));
+  }
+
+  {
+    const absl::StatusOr<std::string> result =
+        ::soia::api::InvokeRemote(*api_client, soiagen_methods::True(), "foo");
+    EXPECT_EQ(result.status(),
+              absl::UnknownError("Method not found: True; number: 2615726"));
+  }
 }
 
 }  // namespace
