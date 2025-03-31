@@ -1756,8 +1756,8 @@ class CcLibFilesGenerator {
     const requestType = typeSpeller.getCcType(method.requestType!);
     const responseType = typeSpeller.getCcType(method.responseType!);
     mainMiddle.push(`struct ${methodName} {`);
-    mainMiddle.push(`  using input_type = ${requestType};`);
-    mainMiddle.push(`  using output_type = ${responseType};`);
+    mainMiddle.push(`  using request_type = ${requestType};`);
+    mainMiddle.push(`  using response_type = ${responseType};`);
     mainMiddle.push(
       `  static constexpr absl::string_view kMethodName = "${methodName}";`,
     );

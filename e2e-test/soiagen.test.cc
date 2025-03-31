@@ -39,7 +39,9 @@ using ::soiagen_structs::Item;
 using ::soiagen_structs::KeyedItems;
 using ::soiagen_user::User;
 using ::soiagen_vehicles_car::Car;
+using ::testing::ElementsAre;
 using ::testing::Not;
+using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 
 using StatusEnum = ::soiagen_simple_enum::Status;
@@ -498,9 +500,9 @@ TEST(SoiagenTest, Constants) {
 
 TEST(SoiagenTest, Methods) {
   using ::soiagen_methods::MyProcedure;
-  static_assert(
-      std::is_same_v<typename MyProcedure::input_type, soiagen_structs::Point>);
-  static_assert(std::is_same_v<typename MyProcedure::output_type,
+  static_assert(std::is_same_v<typename MyProcedure::request_type,
+                               soiagen_structs::Point>);
+  static_assert(std::is_same_v<typename MyProcedure::response_type,
                                soiagen_enums::JsonValue>);
   constexpr int kNumber = MyProcedure::kNumber;
   EXPECT_EQ(kNumber, 1974132327);
@@ -603,20 +605,18 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
 TEST(SoialibTest, SoiaApi) {
   class FakeApiImpl {
    public:
-    using methods_type = std::tuple<soiagen_methods::MyProcedure,
-                                    soiagen_methods::WithExplicitNumber>;
+    using methods = std::tuple<soiagen_methods::MyProcedure,
+                               soiagen_methods::WithExplicitNumber>;
 
-    ::soiagen_enums::JsonValue operator()(soiagen_methods::MyProcedure,
-                                          const ::soiagen_structs::Point& input,
-                                          int& status_code) {
-      return ::soiagen_enums::JsonValue::wrap_number(input.x);
+    ::soiagen_enums::JsonValue operator()(
+        soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request) {
+      return ::soiagen_enums::JsonValue::wrap_number(request.x);
     }
 
     absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> operator()(
         soiagen_methods::WithExplicitNumber,
-        const std::vector<::soiagen_structs::Point>& input,
-        int& status_code) const {
-      if (input.empty()) {
+        const std::vector<::soiagen_structs::Point>& request) const {
+      if (request.empty()) {
         return absl::UnknownError("no point");
       }
       return absl::nullopt;
@@ -624,8 +624,8 @@ TEST(SoialibTest, SoiaApi) {
   };
 
   FakeApiImpl api_impl;
-  std::unique_ptr<soia::api::ApiClient> api_client =
-      soia::api::MakeApiClientForTesting<FakeApiImpl>(&api_impl);
+  std::unique_ptr<soia::api::ApiClient<soia::api::NoMeta>> api_client =
+      soia::api::MakeApiClientForTesting<soia::api::NoMeta>(&api_impl);
 
   {
     const absl::StatusOr<::soiagen_enums::JsonValue> result =
@@ -647,6 +647,39 @@ TEST(SoialibTest, SoiaApi) {
         ::soia::api::InvokeRemote(*api_client, soiagen_methods::True(), "foo");
     EXPECT_EQ(result.status(),
               absl::UnknownError("Method not found: True; number: 2615726"));
+  }
+}
+
+TEST(SoialibTest, SoiaApiWithMetadata) {
+  class FakeApiImpl {
+   public:
+    using methods = std::tuple<soiagen_methods::MyProcedure>;
+
+    ::soiagen_enums::JsonValue operator()(
+        soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request,
+        const ::soia::api::HttpRequestMeta& request_meta,
+        soia::api::HttpResponseMeta& response_meta) {
+      response_meta.headers = request_meta.headers;
+      return ::soiagen_enums::JsonValue::wrap_number(request.x);
+    }
+  };
+
+  FakeApiImpl api_impl;
+  std::unique_ptr<soia::api::ApiClient<soia::api::HttpMeta>> api_client =
+      soia::api::MakeApiClientForTesting<soia::api::HttpMeta>(&api_impl);
+
+  {
+    soia::api::HttpRequestMeta request_meta;
+    request_meta.headers.Add("origin", "foo");
+    soia::api::HttpResponseMeta response_meta;
+    const absl::StatusOr<::soiagen_enums::JsonValue> result =
+        ::soia::api::InvokeRemote(*api_client, soiagen_methods::MyProcedure(),
+                                  soiagen_structs::Point{.x = 1, .y = 2},
+                                  request_meta, &response_meta);
+    EXPECT_THAT(result,
+                IsOkAndHolds(::soiagen_enums::JsonValue::wrap_number(1.0)));
+    EXPECT_THAT(response_meta.headers.map(),
+                UnorderedElementsAre(Pair("origin", ElementsAre("foo"))));
   }
 }
 

@@ -25,7 +25,10 @@ using ::absl_testing::IsOkAndHolds;
 using ::soia_testing_internal::HexToBytes;
 using ::soia_testing_internal::MakeReserializer;
 using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 using ::testing::Not;
+using ::testing::Pair;
+using ::testing::UnorderedElementsAre;
 
 TEST(SoialibTest, RecZeroArgCtor) {
   const soia::rec<std::string> rec;
@@ -1195,6 +1198,21 @@ TEST(SoialibTest, ParseBytesReturnsError) {
       soia::Parse<std::vector<int64_t>>(HexToBytes("f0000080ff").value())
           .status()
           .ok());
+}
+
+TEST(SoialibTest, HttpHeaders) {
+  soia::api::HttpHeaders headers;
+  headers.Add("accept", "A");
+  headers.Add("Accept", "B");
+  headers.Add("origin", "C");
+  EXPECT_THAT(headers.Get("ACCEPT"), ElementsAre("A", "B"));
+  EXPECT_THAT(headers.Get("Z"), IsEmpty());
+  EXPECT_THAT(headers.GetLast("accept"), "B");
+  EXPECT_THAT(headers.GetLast("origin"), "C");
+  EXPECT_THAT(headers.GetLast("Z"), "");
+  EXPECT_THAT(headers.map(),
+              UnorderedElementsAre(Pair("accept", ElementsAre("A", "B")),
+                                   Pair("origin", ElementsAre("C"))));
 }
 
 }  // namespace

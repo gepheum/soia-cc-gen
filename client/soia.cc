@@ -13,6 +13,7 @@
 #include "absl/log/die_if_null.h"
 #include "absl/log/log.h"
 #include "absl/status/status.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -47,6 +48,33 @@ absl::StatusOr<TypeDescriptor> TypeDescriptor::FromJson(
 }
 
 }  // namespace reflection
+
+namespace api {
+
+void HttpHeaders::Add(absl::string_view name, absl::string_view value) {
+  map_[absl::AsciiStrToLower(name)].emplace_back(value);
+}
+
+const std::vector<std::string>& HttpHeaders::Get(absl::string_view name) const {
+  const auto it = map_.find(absl::AsciiStrToLower(name));
+  if (it == map_.cend()) {
+    static const auto* const kResult = new std::vector<std::string>();
+    return *kResult;
+  } else {
+    return it->second;
+  }
+}
+
+absl::string_view HttpHeaders::GetLast(absl::string_view name) const {
+  const std::vector<std::string>& values = Get(name);
+  if (values.empty()) {
+    return "";
+  } else {
+    return values.back();
+  }
+}
+
+}  // namespace api
 }  // namespace soia
 
 namespace soia_internal {
