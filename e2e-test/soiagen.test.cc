@@ -6,7 +6,6 @@
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/optional.h"
 #include "gmock/gmock.h"
@@ -210,7 +209,7 @@ TEST(SoiagenTest, ParseStructFromInvalidJson) {
 }
 
 TEST(SoiagenTest, StatusEnumSimpleOps) {
-  StatusEnum();
+  StatusEnum _ = StatusEnum();
   EXPECT_EQ(StatusEnum(), StatusEnum(soiagen::kUnknown));
   EXPECT_EQ(StatusEnum(soiagen::kUnknown), StatusEnum(soiagen::kUnknown));
   EXPECT_EQ(StatusEnum(soiagen::kUnknown), soiagen::kUnknown);
@@ -602,30 +601,30 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
               UnorderedElementsAre("first_name", "last_name"));
 }
 
+class FakeApiImplNoMeta {
+ public:
+  using meta = soia::api::NoMeta;
+
+  using methods = std::tuple<soiagen_methods::MyProcedure,
+                             soiagen_methods::WithExplicitNumber>;
+
+  ::soiagen_enums::JsonValue operator()(
+      soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request) {
+    return ::soiagen_enums::JsonValue::wrap_number(request.x);
+  }
+
+  absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> operator()(
+      soiagen_methods::WithExplicitNumber,
+      const std::vector<::soiagen_structs::Point>& request) const {
+    if (request.empty()) {
+      return absl::UnknownError("no point");
+    }
+    return absl::nullopt;
+  }
+};
+
 TEST(SoialibTest, SoiaApi) {
-  class FakeApiImpl {
-   public:
-    using meta = soia::api::NoMeta;
-
-    using methods = std::tuple<soiagen_methods::MyProcedure,
-                               soiagen_methods::WithExplicitNumber>;
-
-    ::soiagen_enums::JsonValue operator()(
-        soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request) {
-      return ::soiagen_enums::JsonValue::wrap_number(request.x);
-    }
-
-    absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> operator()(
-        soiagen_methods::WithExplicitNumber,
-        const std::vector<::soiagen_structs::Point>& request) const {
-      if (request.empty()) {
-        return absl::UnknownError("no point");
-      }
-      return absl::nullopt;
-    }
-  };
-
-  FakeApiImpl api_impl;
+  FakeApiImplNoMeta api_impl;
   std::unique_ptr<soia::api::ApiClient<soia::api::NoMeta>> api_client =
       soia::api::MakeApiClientForTesting(&api_impl);
 
@@ -653,23 +652,23 @@ TEST(SoialibTest, SoiaApi) {
   }
 }
 
+class FakeApiImplWithMeta {
+ public:
+  using meta = soia::api::HttpMeta;
+
+  using methods = std::tuple<soiagen_methods::MyProcedure>;
+
+  ::soiagen_enums::JsonValue operator()(
+      soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request,
+      const ::soia::api::HttpRequestMeta& request_meta,
+      soia::api::HttpResponseMeta& response_meta) {
+    response_meta.headers = request_meta.headers;
+    return ::soiagen_enums::JsonValue::wrap_number(request.x);
+  }
+};
+
 TEST(SoialibTest, SoiaApiWithMetadata) {
-  class FakeApiImpl {
-   public:
-    using meta = soia::api::HttpMeta;
-
-    using methods = std::tuple<soiagen_methods::MyProcedure>;
-
-    ::soiagen_enums::JsonValue operator()(
-        soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request,
-        const ::soia::api::HttpRequestMeta& request_meta,
-        soia::api::HttpResponseMeta& response_meta) {
-      response_meta.headers = request_meta.headers;
-      return ::soiagen_enums::JsonValue::wrap_number(request.x);
-    }
-  };
-
-  FakeApiImpl api_impl;
+  FakeApiImplWithMeta api_impl;
   std::unique_ptr<soia::api::ApiClient<soia::api::HttpMeta>> api_client =
       soia::api::MakeApiClientForTesting(&api_impl);
 

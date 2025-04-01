@@ -12,6 +12,7 @@
 
 #include "absl/base/nullability.h"
 #include "absl/log/die_if_null.h"
+#include "gmock/gmock.h"
 #include "soia.h"
 
 namespace testing {

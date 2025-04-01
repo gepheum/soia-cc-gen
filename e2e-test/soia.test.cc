@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
-#include <optional>
 #include <type_traits>
 #include <utility>
 
@@ -13,7 +12,6 @@
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/time/time.h"
 #include "gmock/gmock.h"
@@ -21,12 +19,10 @@
 
 namespace {
 using ::absl_testing::IsOk;
-using ::absl_testing::IsOkAndHolds;
 using ::soia_testing_internal::HexToBytes;
 using ::soia_testing_internal::MakeReserializer;
 using ::testing::ElementsAre;
 using ::testing::IsEmpty;
-using ::testing::Not;
 using ::testing::Pair;
 using ::testing::UnorderedElementsAre;
 

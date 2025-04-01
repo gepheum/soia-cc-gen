@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
@@ -18,28 +19,33 @@
 #include "soia.h"
 
 namespace soia_testing_internal {
-
-absl::StatusOr<std::string> HexToBytes(absl::string_view hex_string) {
-  const auto hex_digit_to_int = [](char c) {
-    if ('0' <= c && c <= '9') {
-      return c - '0';
-    } else if ('a' <= c && c <= 'f') {
-      return c - 'a' + 10;
+struct Utils {
+  static absl::StatusOr<std::string> HexToBytes(absl::string_view hex_string) {
+    const auto hex_digit_to_int = [](char c) {
+      if ('0' <= c && c <= '9') {
+        return c - '0';
+      } else if ('a' <= c && c <= 'f') {
+        return c - 'a' + 10;
+      }
+      return -1;
+    };
+    const size_t num_bytes = hex_string.length() / 2;
+    std::string bytes = "soia";
+    bytes.reserve(4 + num_bytes);
+    for (size_t i = 0; i < num_bytes; ++i) {
+      const int hi = hex_digit_to_int(hex_string[2 * i]);
+      const int lo = hex_digit_to_int(hex_string[2 * i + 1]);
+      if (hi < 0 || lo < 0) {
+        return absl::UnknownError("not a hexadecimal string");
+      }
+      bytes.push_back((hi << 4) | lo);
     }
-    return -1;
-  };
-  const size_t num_bytes = hex_string.length() / 2;
-  std::string bytes = "soia";
-  bytes.reserve(4 + num_bytes);
-  for (size_t i = 0; i < num_bytes; ++i) {
-    const int hi = hex_digit_to_int(hex_string[2 * i]);
-    const int lo = hex_digit_to_int(hex_string[2 * i + 1]);
-    if (hi < 0 || lo < 0) {
-      return absl::UnknownError("not a hexadecimal string");
-    }
-    bytes.push_back((hi << 4) | lo);
+    return bytes;
   }
-  return bytes;
+};
+
+inline absl::StatusOr<std::string> HexToBytes(absl::string_view hex_string) {
+  return Utils::HexToBytes(hex_string);
 }
 
 namespace reserializer {
@@ -63,98 +69,106 @@ class ErrorSink {
   std::vector<std::string> errors_;
 };
 
-std::string BytesToHex(absl::string_view bytes) {
-  bytes = absl::StripPrefix(bytes, "soia");
-  constexpr char kHexDigits[] = "0123456789abcdef";
-  std::string result;
-  result.reserve(bytes.length() * 2);
-  for (size_t i = 0; i < bytes.length(); ++i) {
-    const uint8_t byte = static_cast<uint8_t>(bytes[i]);
-    result += {kHexDigits[(byte >> 4) & 0x0F], kHexDigits[byte & 0x0F]};
+struct ReserializerUtils {
+  static std::string BytesToHex(absl::string_view bytes) {
+    bytes = absl::StripPrefix(bytes, "soia");
+    constexpr char kHexDigits[] = "0123456789abcdef";
+    std::string result;
+    result.reserve(bytes.length() * 2);
+    for (size_t i = 0; i < bytes.length(); ++i) {
+      const uint8_t byte = static_cast<uint8_t>(bytes[i]);
+      result += {kHexDigits[(byte >> 4) & 0x0F], kHexDigits[byte & 0x0F]};
+    }
+    return result;
   }
-  return result;
-}
 
-absl::StatusOr<std::string> BytesToDenseJson(absl::string_view bytes) {
-  if (!absl::StartsWith(bytes, "soia")) {
-    return absl::UnknownError("missing soia prefix");
+  static absl::StatusOr<std::string> BytesToDenseJson(absl::string_view bytes) {
+    if (!absl::StartsWith(bytes, "soia")) {
+      return absl::UnknownError("missing soia prefix");
+    }
+    soia_internal::ByteSource source(bytes.data() + 4, bytes.length() - 4);
+    soia_internal::UnrecognizedValues unrecognized_value;
+    unrecognized_value.ParseFrom(source);
+    if (source.error) {
+      return absl::UnknownError("error while parsing bytes");
+    }
+    if (source.pos != source.end) {
+      return absl::UnknownError(absl::StrCat(
+          "source.pos != source.end; source.pos: ", (size_t)source.pos,
+          "; source.end: ", (size_t)source.end));
+    }
+    soia_internal::DenseJson dense_json;
+    unrecognized_value.AppendTo(dense_json);
+    return dense_json.out;
   }
-  soia_internal::ByteSource source(bytes.data() + 4, bytes.length() - 4);
-  soia_internal::UnrecognizedValues unrecognized_value;
-  unrecognized_value.ParseFrom(source);
-  if (source.error) {
-    return absl::UnknownError("error while parsing bytes");
-  }
-  if (source.pos != source.end) {
-    return absl::UnknownError(absl::StrCat(
-        "source.pos != source.end; source.pos: ", (size_t)source.pos,
-        "; source.end: ", (size_t)source.end));
-  }
-  soia_internal::DenseJson dense_json;
-  unrecognized_value.AppendTo(dense_json);
-  return dense_json.out;
-}
 
-absl::StatusOr<std::string> DenseJsonToBytes(absl::string_view dense_json) {
-  // Copy to a non-NULL-terminated vector.
-  std::vector<char> dense_json_chars(dense_json.begin(), dense_json.end());
-  soia_internal::JsonTokenizer tokenizer(
-      dense_json_chars.data(), dense_json_chars.data() + dense_json.length(),
-      soia::UnrecognizedFieldsPolicy::kKeep);
-  tokenizer.Next();
-  soia_internal::UnrecognizedValues unrecognized_value;
-  unrecognized_value.ParseFrom(tokenizer);
-  if (!tokenizer.state().status.ok()) {
-    return tokenizer.state().status;
+  static absl::StatusOr<std::string> DenseJsonToBytes(
+      absl::string_view dense_json) {
+    // Copy to a non-NULL-terminated vector.
+    std::vector<char> dense_json_chars(dense_json.begin(), dense_json.end());
+    soia_internal::JsonTokenizer tokenizer(
+        dense_json_chars.data(), dense_json_chars.data() + dense_json.length(),
+        soia::UnrecognizedFieldsPolicy::kKeep);
+    tokenizer.Next();
+    soia_internal::UnrecognizedValues unrecognized_value;
+    unrecognized_value.ParseFrom(tokenizer);
+    if (!tokenizer.state().status.ok()) {
+      return tokenizer.state().status;
+    }
+    if (tokenizer.state().token_type != soia_internal::JsonTokenType::kStrEnd) {
+      return absl::UnknownError(
+          "tokenizer.state().token_type != JsonTokenType::kStrEnd");
+    }
+    soia_internal::ByteSink byte_sink;
+    byte_sink.Push('s', 'o', 'i', 'a');
+    unrecognized_value.AppendTo(byte_sink);
+    return std::move(byte_sink).ToByteString().as_string();
   }
-  if (tokenizer.state().token_type != soia_internal::JsonTokenType::kStrEnd) {
-    return absl::UnknownError(
-        "tokenizer.state().token_type != JsonTokenType::kStrEnd");
-  }
-  soia_internal::ByteSink byte_sink;
-  byte_sink.Push('s', 'o', 'i', 'a');
-  unrecognized_value.AppendTo(byte_sink);
-  return std::move(byte_sink).ToByteString().as_string();
-}
 
-void CheckJsonValueIsSkippable(absl::string_view json, ErrorSink& errors) {
-  // Copy to a non-NULL-terminated vector.
-  std::vector<char> dense_json_chars(json.begin(), json.end());
-  soia_internal::JsonTokenizer tokenizer(json.data(),
-                                         json.data() + json.length(),
-                                         soia::UnrecognizedFieldsPolicy::kKeep);
+  static void CheckJsonValueIsSkippable(absl::string_view json,
+                                        ErrorSink& errors) {
+    // Copy to a non-NULL-terminated vector.
+    std::vector<char> dense_json_chars(json.begin(), json.end());
+    soia_internal::JsonTokenizer tokenizer(
+        json.data(), json.data() + json.length(),
+        soia::UnrecognizedFieldsPolicy::kKeep);
 
-  tokenizer.Next();
-  soia_internal::SkipValue(tokenizer);
-  if (!tokenizer.state().status.ok()) {
-    errors.Push(
-        "error while skipping JSON value",
-        {{"error", tokenizer.state().status.ToString()}, {"json", json}});
-  } else if (tokenizer.state().token_type !=
-             soia_internal::JsonTokenType::kStrEnd) {
-    errors.Push(
-        "error while skipping JSON value: "
-        "tokenizer.state().token_type != JsonTokenType::kStrEnd",
-        {{"json", json}});
+    tokenizer.Next();
+    soia_internal::SkipValue(tokenizer);
+    if (!tokenizer.state().status.ok()) {
+      errors.Push(
+          "error while skipping JSON value",
+          {{"error", tokenizer.state().status.ToString()}, {"json", json}});
+    } else if (tokenizer.state().token_type !=
+               soia_internal::JsonTokenType::kStrEnd) {
+      errors.Push(
+          "error while skipping JSON value: "
+          "tokenizer.state().token_type != JsonTokenType::kStrEnd",
+          {{"json", json}});
+    }
   }
-}
 
-void CheckBytesValueIsSkippable(absl::string_view bytes, ErrorSink& errors) {
-  if (!absl::StartsWith(bytes, "soia")) {
-    errors.Push("missing soia prefix",
-                {{"bytes", reserializer::BytesToHex(bytes)}});
-    return;
+  static void CheckBytesValueIsSkippable(absl::string_view bytes,
+                                         ErrorSink& errors) {
+    if (!absl::StartsWith(bytes, "soia")) {
+      errors.Push(
+          "missing soia prefix",
+          {{"bytes", reserializer::ReserializerUtils::BytesToHex(bytes)}});
+      return;
+    }
+    soia_internal::ByteSource source(bytes.data() + 4, bytes.length() - 4);
+    soia_internal::SkipValue(source);
+    if (source.error) {
+      errors.Push(
+          "error while skipping bytes value",
+          {{"bytes", reserializer::ReserializerUtils::BytesToHex(bytes)}});
+    } else if (source.pos != source.end) {
+      errors.Push(
+          "error while skipping bytes value: source.pos != source.end",
+          {{"bytes", reserializer::ReserializerUtils::BytesToHex(bytes)}});
+    }
   }
-  soia_internal::ByteSource source(bytes.data() + 4, bytes.length() - 4);
-  soia_internal::SkipValue(source);
-  if (source.error) {
-    errors.Push("error while skipping bytes value",
-                {{"bytes", reserializer::BytesToHex(bytes)}});
-  } else if (source.pos != source.end) {
-    errors.Push("error while skipping bytes value: source.pos != source.end",
-                {{"bytes", reserializer::BytesToHex(bytes)}});
-  }
-}
+};
 }  // namespace reserializer
 
 template <typename T>
@@ -338,13 +352,15 @@ class Reserializer {
                      {"schema", schema.name}});
       }
 
-      reserializer::CheckJsonValueIsSkippable(*reencoded_json, errors);
+      reserializer::ReserializerUtils::CheckJsonValueIsSkippable(
+          *reencoded_json, errors);
     }
 
-    reserializer::CheckJsonValueIsSkippable(actual_dense_json, errors);
+    reserializer::ReserializerUtils::CheckJsonValueIsSkippable(
+        actual_dense_json, errors);
 
     const absl::StatusOr<std::string> bytes =
-        reserializer::DenseJsonToBytes(actual_dense_json);
+        reserializer::ReserializerUtils::DenseJsonToBytes(actual_dense_json);
     if (!bytes.ok()) {
       errors.Push("DenseJsonToBytes() returned an error",
                   {{"error", bytes.status().ToString()}});
@@ -353,19 +369,21 @@ class Reserializer {
 
     reserialized = soia::Parse<T>(*bytes);
     if (!reserialized.ok()) {
-      errors.Push("Parse(DenseJsonToBytes(ToDenseJson())) returned an error",
-                  {{"error", reserialized.status().ToString()},
-                   {"json", actual_dense_json},
-                   {"bytes", reserializer::BytesToHex(*bytes)}});
+      errors.Push(
+          "Parse(DenseJsonToBytes(ToDenseJson())) returned an error",
+          {{"error", reserialized.status().ToString()},
+           {"json", actual_dense_json},
+           {"bytes", reserializer::ReserializerUtils::BytesToHex(*bytes)}});
       return;
     }
 
     if (!identity_(*reserialized)) {
-      errors.Push("Parse(DenseJsonToBytes(ToDenseJson())) doesn't match",
-                  {{"expected", soia_internal::ToDebugString(subject_)},
-                   {"actual", soia_internal::ToDebugString(*reserialized)},
-                   {"json", actual_dense_json},
-                   {"bytes", reserializer::BytesToHex(*bytes)}});
+      errors.Push(
+          "Parse(DenseJsonToBytes(ToDenseJson())) doesn't match",
+          {{"expected", soia_internal::ToDebugString(subject_)},
+           {"actual", soia_internal::ToDebugString(*reserialized)},
+           {"json", actual_dense_json},
+           {"bytes", reserializer::ReserializerUtils::BytesToHex(*bytes)}});
     }
   }
 
@@ -396,7 +414,8 @@ class Reserializer {
                    {"json", actual_readable_json}});
     }
 
-    reserializer::CheckJsonValueIsSkippable(actual_readable_json, errors);
+    reserializer::ReserializerUtils::CheckJsonValueIsSkippable(
+        actual_readable_json, errors);
   }
 
   void CheckBytes(reserializer::ErrorSink& errors) const {
@@ -404,11 +423,13 @@ class Reserializer {
 
     if (!absl::StartsWith(actual_bytes, "soia")) {
       errors.Push("missing soia prefix",
-                  {{"bytes", reserializer::BytesToHex(actual_bytes)}});
+                  {{"bytes", reserializer::ReserializerUtils::BytesToHex(
+                                 actual_bytes)}});
       return;
     }
 
-    const std::string actual_bytes_hex = reserializer::BytesToHex(actual_bytes);
+    const std::string actual_bytes_hex =
+        reserializer::ReserializerUtils::BytesToHex(actual_bytes);
 
     if (expected_bytes_hex_.has_value() &&
         actual_bytes_hex != *expected_bytes_hex_) {
@@ -460,17 +481,20 @@ class Reserializer {
       if (*reencoded_bytes != actual_bytes) {
         errors.Push("Reencoded bytes don't match original bytes",
                     {{"expected", actual_bytes_hex},
-                     {"actual", reserializer::BytesToHex(*reencoded_bytes)},
+                     {"actual", reserializer::ReserializerUtils::BytesToHex(
+                                    *reencoded_bytes)},
                      {"schema", schema.name}});
       }
 
-      reserializer::CheckBytesValueIsSkippable(*reencoded_bytes, errors);
+      reserializer::ReserializerUtils::CheckBytesValueIsSkippable(
+          *reencoded_bytes, errors);
     }
 
-    reserializer::CheckBytesValueIsSkippable(actual_bytes, errors);
+    reserializer::ReserializerUtils::CheckBytesValueIsSkippable(actual_bytes,
+                                                                errors);
 
     const absl::StatusOr<std::string> dense_json =
-        reserializer::BytesToDenseJson(actual_bytes);
+        reserializer::ReserializerUtils::BytesToDenseJson(actual_bytes);
     if (!dense_json.ok()) {
       errors.Push("BytesToDenseJson() returned an error",
                   {{"error", dense_json.status().ToString()},
@@ -509,7 +533,8 @@ class Reserializer {
 
   void CheckAlternativeJsons(reserializer::ErrorSink& errors) const {
     for (const std::string& alternative_json : alternative_jsons_) {
-      reserializer::CheckJsonValueIsSkippable(alternative_json, errors);
+      reserializer::ReserializerUtils::CheckJsonValueIsSkippable(
+          alternative_json, errors);
 
       const absl::StatusOr<T> deserialized = soia::Parse<T>(alternative_json);
       if (!deserialized.ok()) {
@@ -538,7 +563,8 @@ class Reserializer {
         continue;
       }
 
-      reserializer::CheckBytesValueIsSkippable(*bytes, errors);
+      reserializer::ReserializerUtils::CheckBytesValueIsSkippable(*bytes,
+                                                                  errors);
 
       const absl::StatusOr<T> deserialized = soia::Parse<T>(*bytes);
       if (!deserialized.ok()) {
