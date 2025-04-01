@@ -18,3 +18,7 @@ git_override(
     remote = "https://github.com/mikael-s-persson/bazel-compile-commands-extractor",
     commit = "f5fbd4cee671d8d908f37c83abaf70fba5928fc7"
 )
+
+# Choose the most recent version available at
+# https://registry.bazel.build/modules/cpp-httplib
+bazel_dep(name = "cpp-httplib", version = "0.16.3.bzl.1")

@@ -27,7 +27,10 @@
     "copy-to-client:check": "diff -s e2e-test/soia.h client/soia.h && diff -s e2e-test/soia.cc client/soia.cc && diff -s e2e-test/soia.testing.h client/soia.testing.h",
     "format": "prettier --write \"**/*.ts\"",
     "format:check": "prettier --check \"**/*.ts\"",
-    "test": "npm run build && soiac --root=e2e-test && cd e2e-test && CC=clang BAZEL_COMPILER=llvm bazel test --copt=-DADDRESS_SANITIZER --copt=-fsanitize=address --linkopt=-fsanitize=address --test_output=errors :all && cd ../client && bazel build :soia && bazel build :soia.testing && cd .."
+    "gen-clang-json": "cd e2e-test && bazel run @hedron_compile_commands//:refresh_all && cd ..",
+    "test-cc": "cd e2e-test && CC=clang BAZEL_COMPILER=llvm bazel test --copt=-DADDRESS_SANITIZER --copt=-fsanitize=address --linkopt=-fsanitize=address --test_output=errors :all && cd ..",
+    "build-client": "cd client && bazel build :soia && bazel build :soia.testing && cd ..",
+    "test": "npm run build && soiac --root=e2e-test && npm run gen-clang-json && npm run test-cc && npm run build-client"
   },
   "devDependencies": {
     "@trivago/prettier-plugin-sort-imports": "^4.3.0",

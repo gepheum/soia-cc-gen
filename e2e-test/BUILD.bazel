@@ -1,11 +1,4 @@
 cc_library(
-    name = "httplib",
-    testonly = True,
-    hdrs = ["httplib.h"],
-    deps = [],
-)
-
-cc_library(
     name = "reserializer.testing",
     testonly = True,
     hdrs = ["reserializer.testing.h"],
@@ -18,27 +11,11 @@ cc_library(
     ],
 )
 
-cc_test(
-    name = "soia_api.test",
-    size = "small",
-    srcs = ["soia_api.test.cc"],
-    deps = [
-        ":httplib",
-        ":soia",
-        ":soia.testing",
-        ":soiagen",
-        "@abseil-cpp//absl/container:flat_hash_map",
-        "@abseil-cpp//absl/status:status_matchers",
-        "@abseil-cpp//absl/status:statusor",
-        "@googletest//:gtest",
-        "@googletest//:gtest_main",
-    ],
-)
-
 cc_library(
     name = "soia",
     srcs = ["soia.cc"],
     hdrs = ["soia.h"],
+    # When changing the dependencies, make sure to modify client/BUILD.bazel
     deps = [
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/container:flat_hash_map",
@@ -76,11 +53,29 @@ cc_library(
     testonly = True,
     srcs = [],
     hdrs = ["soia.testing.h"],
+    # When changing the dependencies, make sure to modify client/BUILD.bazel
     deps = [
         ":soia",
         "@abseil-cpp//absl/base",
         "@abseil-cpp//absl/log:die_if_null",
         "@googletest//:gtest",
+    ],
+)
+
+cc_test(
+    name = "soia_api.test",
+    size = "small",
+    srcs = ["soia_api.test.cc"],
+    deps = [
+        ":soia",
+        ":soia.testing",
+        ":soiagen",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/status:statusor",
+        "@cpp-httplib//:httplib",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
