@@ -1,7 +1,7 @@
 // Soia client library
 
 #ifndef SOIA_SOIA_H_VERSION
-#define SOIA_SOIA_H_VERSION 20250331
+#define SOIA_SOIA_H_VERSION 20250401
 
 #include <algorithm>
 #include <cmath>
@@ -648,6 +648,9 @@ class rec {
       return *(value_ = std::make_unique<T>());
     }
   }
+
+  operator const T&() const { return **this; }
+  operator T&() { return **this; }
 
   const T* operator->() const { return &(**this); }
   T* operator->() { return &(**this); }

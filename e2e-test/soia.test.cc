@@ -67,6 +67,18 @@ TEST(SoialibTest, RecMutableStarOperator) {
   EXPECT_EQ(i, 5);
 }
 
+TEST(SoialibTest, RecImplicitConversion) {
+  soia::rec<int> a(3);
+  int& i = a;
+  EXPECT_EQ(i, 3);
+  i = 4;
+  EXPECT_EQ(*a, 4);
+
+  const soia::rec<int> b(3);
+  const int& j = b;
+  EXPECT_EQ(j, 3);
+}
+
 TEST(SoialibTest, RecAssignment) {
   soia::rec<int> a(3);
   a = soia::rec<int>();
