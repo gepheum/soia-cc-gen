@@ -1,0 +1,31 @@
+cc_library(
+    name = "soia",
+    srcs = ["soia.cc"],
+    hdrs = ["soia.h"],
+    deps = [
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/hash",
+        "@abseil-cpp//absl/log:absl_check",
+        "@abseil-cpp//absl/log:die_if_null",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@abseil-cpp//absl/time",
+        "@abseil-cpp//absl/types:optional",
+        "@abseil-cpp//absl/types:variant",
+    ],
+)
+
+cc_library(
+    name = "soia.testing",
+    testonly = True,
+    srcs = [],
+    hdrs = ["soia.testing.h"],
+    deps = [
+        ":soia",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log:die_if_null",
+        "@googletest//:gtest",
+    ],
+)

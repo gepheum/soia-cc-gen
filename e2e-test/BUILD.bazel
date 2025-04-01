@@ -78,7 +78,8 @@ cc_library(
     hdrs = ["soia.testing.h"],
     deps = [
         ":soia",
-        "@abseil-cpp//absl/types:optional",
+        "@abseil-cpp//absl/base",
+        "@abseil-cpp//absl/log:die_if_null",
         "@googletest//:gtest",
     ],
 )
