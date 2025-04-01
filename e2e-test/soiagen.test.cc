@@ -1,5 +1,4 @@
 #include <gtest/gtest.h>
-
 #include <type_traits>
 
 #include "absl/container/flat_hash_set.h"
@@ -605,6 +604,8 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
 TEST(SoialibTest, SoiaApi) {
   class FakeApiImpl {
    public:
+    using meta = soia::api::NoMeta;
+
     using methods = std::tuple<soiagen_methods::MyProcedure,
                                soiagen_methods::WithExplicitNumber>;
 
@@ -625,7 +626,7 @@ TEST(SoialibTest, SoiaApi) {
 
   FakeApiImpl api_impl;
   std::unique_ptr<soia::api::ApiClient<soia::api::NoMeta>> api_client =
-      soia::api::MakeApiClientForTesting<soia::api::NoMeta>(&api_impl);
+      soia::api::MakeApiClientForTesting(&api_impl);
 
   {
     const absl::StatusOr<::soiagen_enums::JsonValue> result =
@@ -639,20 +640,23 @@ TEST(SoialibTest, SoiaApi) {
     const absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> result =
         ::soia::api::InvokeRemote(*api_client,
                                   soiagen_methods::WithExplicitNumber(), {});
-    EXPECT_EQ(result.status(), absl::UnknownError("no point"));
+    EXPECT_EQ(result.status(), absl::UnknownError("Server error: no point"));
   }
 
   {
     const absl::StatusOr<std::string> result =
         ::soia::api::InvokeRemote(*api_client, soiagen_methods::True(), "foo");
     EXPECT_EQ(result.status(),
-              absl::UnknownError("Method not found: True; number: 2615726"));
+              absl::UnknownError(
+                  "Bad request: Method not found: True; number: 2615726"));
   }
 }
 
 TEST(SoialibTest, SoiaApiWithMetadata) {
   class FakeApiImpl {
    public:
+    using meta = soia::api::HttpMeta;
+
     using methods = std::tuple<soiagen_methods::MyProcedure>;
 
     ::soiagen_enums::JsonValue operator()(
@@ -666,7 +670,7 @@ TEST(SoialibTest, SoiaApiWithMetadata) {
 
   FakeApiImpl api_impl;
   std::unique_ptr<soia::api::ApiClient<soia::api::HttpMeta>> api_client =
-      soia::api::MakeApiClientForTesting<soia::api::HttpMeta>(&api_impl);
+      soia::api::MakeApiClientForTesting(&api_impl);
 
   {
     soia::api::HttpRequestMeta request_meta;

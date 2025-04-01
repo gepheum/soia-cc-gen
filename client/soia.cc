@@ -15,6 +15,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
@@ -2527,9 +2528,37 @@ const std::string& GetHttpContentType(absl::string_view content) {
     static const auto* kContentType =
         new std::string("application/octet-stream");
     return *kContentType;
+  } else if (absl::StartsWith(content, kBadRequestPrefix) ||
+             absl::StartsWith(content, kServerErrorPrefix)) {
+    static const auto* kContentType = new std::string("text/plain");
+    return *kContentType;
   } else {
     static const auto* kContentType = new std::string("application/json");
     return *kContentType;
+  }
+}
+
+absl::Status CheckResponseData(absl::string_view response_data) {
+  if (absl::StartsWith(response_data, kBadRequestPrefix)) {
+    return absl::UnknownError(absl::StrCat(
+        "Bad request: ", response_data.substr(kBadRequestPrefix.length())));
+  } else if (absl::StartsWith(response_data, kServerErrorPrefix)) {
+    return absl::UnknownError(absl::StrCat(
+        "Server error: ", response_data.substr(kServerErrorPrefix.length())));
+  } else {
+    return absl::OkStatus();
+  }
+}
+
+soia::api::ResponseType GetApiResponseType(absl::string_view response_data) {
+  if (absl::StartsWith(response_data, "soia")) {
+    return soia::api::ResponseType::kOkBytes;
+  } else if (absl::StartsWith(response_data, kBadRequestPrefix)) {
+    return soia::api::ResponseType::kBadRequest;
+  } else if (absl::StartsWith(response_data, kServerErrorPrefix)) {
+    return soia::api::ResponseType::kServerError;
+  } else {
+    return soia::api::ResponseType::kOkJson;
   }
 }
 

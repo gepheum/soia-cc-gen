@@ -6,3 +6,20 @@ method MyProcedure(Point): JsonValue;
 method WithExplicitNumber([Point]): JsonValue? = 3;
 
 method True(string): string;
+
+method ListUsers(ListUsersRequest): ListUsersResponse;
+
+struct ListUsersRequest {
+  country: string;
+}
+
+struct User {
+  id: uint64;
+  first_name: string;
+  last_name: string;
+  country: string;
+}
+
+struct ListUsersResponse {
+  users: [User|id];
+}

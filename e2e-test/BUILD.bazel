@@ -1,4 +1,11 @@
 cc_library(
+    name = "httplib",
+    testonly = True,
+    hdrs = ["httplib.h"],
+    deps = [],
+)
+
+cc_library(
     name = "reserializer.testing",
     testonly = True,
     hdrs = ["reserializer.testing.h"],
@@ -7,6 +14,23 @@ cc_library(
         "@abseil-cpp//absl/status:statusor",
         "@abseil-cpp//absl/strings",
         "@abseil-cpp//absl/types:optional",
+    ],
+)
+
+cc_test(
+    name = "soia_api.test",
+    size = "small",
+    srcs = ["soia_api.test.cc"],
+    deps = [
+        ":httplib",
+        ":soia",
+        ":soia.testing",
+        ":soiagen",
+        "@abseil-cpp//absl/container:flat_hash_map",
+        "@abseil-cpp//absl/status:status_matchers",
+        "@abseil-cpp//absl/status:statusor",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )
 
