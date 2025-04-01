@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+
 #include <type_traits>
 
 #include "absl/container/flat_hash_set.h"

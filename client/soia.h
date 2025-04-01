@@ -1,7 +1,7 @@
 // Soia client library
 
 #ifndef SOIA_SOIA_H_VERSION
-#define SOIA_SOIA_H_VERSION 20250328
+#define SOIA_SOIA_H_VERSION 20250331
 
 #include <algorithm>
 #include <cmath>
