@@ -569,6 +569,13 @@ TEST(SoiagenTest, EnumValueMatcher) {
 }
 
 struct FieldNameCollector {
+  FieldNameCollector() = default;
+
+  FieldNameCollector(const FieldNameCollector&) = delete;
+  FieldNameCollector(FieldNameCollector&&) = delete;
+  FieldNameCollector& operator=(const FieldNameCollector&) = delete;
+  FieldNameCollector& operator=(FieldNameCollector&&) = delete;
+
   absl::flat_hash_set<absl::string_view> field_names;
 
   template <typename Getter, typename Value>
@@ -592,6 +599,9 @@ TEST(SoiagenTest, ForEachFieldOfEnum) {
   soia::reflection::ForEachField<StatusEnum>(collector);
   EXPECT_THAT(collector.field_names,
               UnorderedElementsAre("OK", "UNKNOWN", "error"));
+
+  // Just to make sure we can pass an rvalue.
+  soia::reflection::ForEachField<StatusEnum>(FieldNameCollector());
 }
 
 TEST(SoiagenTest, ForEachFieldOfStruct) {

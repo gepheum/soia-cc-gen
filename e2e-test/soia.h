@@ -2371,7 +2371,7 @@ constexpr bool IsEnum() {
 }
 
 template <typename Record, typename F>
-void ForEachField(F& f) {
+void ForEachField(F&& f) {
   static_assert(IsStruct<Record>() || IsEnum<Record>());
   std::apply(
       [&f](auto&&... x) {
