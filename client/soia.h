@@ -2633,7 +2633,7 @@ template <typename Method>
 absl::StatusOr<typename Method::response_type> InvokeRemote(
     const ApiClient& api_client, Method method,
     const typename Method::request_type& request,
-    const HttpHeaders& request_headers,
+    const HttpHeaders& request_headers = {},
     HttpHeaders* response_headers = nullptr) {
   const std::string request_data = absl::StrCat(
       Method::kMethodName, ":", Method::kNumber, "::", ToDenseJson(request));
