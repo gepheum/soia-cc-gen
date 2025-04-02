@@ -1776,11 +1776,11 @@ class CcLibFilesGenerator {
     header.mainMiddle.push(`const ${type}& ${name}();`);
     header.mainMiddle.push("");
     source.mainMiddle.push(`const ${type}& ${name}() {`);
-    source.mainMiddle.push(`  static auto* result = new ${type}(`);
+    source.mainMiddle.push(`  static const auto* kResult = new ${type}(`);
     source.mainMiddle.push(`      ::soia::Parse<${type}>(`);
     source.mainMiddle.push(`          ${ccStringLiteral})`);
     source.mainMiddle.push("          .value());");
-    source.mainMiddle.push("  return *result;");
+    source.mainMiddle.push("  return *kResult;");
     source.mainMiddle.push("}");
     source.mainMiddle.push("");
   }
