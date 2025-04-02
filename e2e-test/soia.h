@@ -2346,6 +2346,9 @@ constexpr bool IsEnum() {
   return soia_internal::TypeAdapter<T>::IsEnum();
 }
 
+// Calls f(field) for each field in the soia-generated datatype.
+// The type of the single argument passed to f is one of: struct_field,
+// enum_const_field, enum_value_field.
 template <typename Record, typename F>
 void ForEachField(F&& f) {
   static_assert(IsStruct<Record>() || IsEnum<Record>());
@@ -2488,8 +2491,8 @@ struct HandleRequestOp {
 template <typename HttplibClientPtr>
 class HttplibApiClient : public soia::api::ApiClient {
  public:
-  HttplibApiClient(HttplibClientPtr client, std::string pathname)
-      : client_(std::move(ABSL_DIE_IF_NULL(client))), pathname_(pathname) {}
+  HttplibApiClient(HttplibClientPtr client, std::string query_path)
+      : client_(std::move(ABSL_DIE_IF_NULL(client))), query_path_(query_path) {}
 
   absl::StatusOr<std::string> operator()(
       absl::string_view request_data,
@@ -2499,7 +2502,7 @@ class HttplibApiClient : public soia::api::ApiClient {
         soia_internal::GetHttpContentType(request_data);
     auto headers = decltype(HttplibClientPtr()->Get("")->headers)();
     SoiaToHttplibHeaders(request_headers, headers);
-    auto result = client_->Post(pathname_, headers, request_data.data(),
+    auto result = client_->Post(query_path_, headers, request_data.data(),
                                 request_data.length(), content_type);
     if (result) {
       response_headers = HttplibToSoiaHeaders(result->headers);
@@ -2515,7 +2518,7 @@ class HttplibApiClient : public soia::api::ApiClient {
 
  private:
   const HttplibClientPtr client_;
-  const std::string pathname_;
+  const std::string query_path_;
 };
 
 }  // namespace soia_internal
@@ -2575,9 +2578,15 @@ ResponseData HandleRequest(ApiImpl& api_impl, absl::string_view request_data,
       .Run();
 }
 
+// Installs a soia API on the given httplib::Server as the given query path.
+// The httplib::Server type is referred to as a template parameter so as not to
+// make cpp-httplib a dependency of soia.
+//
+// ApiImpl must satisfy the requirements outlined in the documentation for
+// HandleRequest.
 template <typename HttplibServer, typename ApiImpl>
 void InstallApiOnHttplibServer(HttplibServer& server,
-                               absl::string_view pathname,
+                               absl::string_view query_path,
                                std::shared_ptr<ApiImpl> api_impl) {
   ABSL_CHECK_NE(api_impl, nullptr);
   const typename HttplibServer::Handler handler =  //
@@ -2625,10 +2634,13 @@ void InstallApiOnHttplibServer(HttplibServer& server,
           }
         }
       };
-  server.Get(std::string(pathname), handler);
-  server.Post(std::string(pathname), handler);
+  server.Get(std::string(query_path), handler);
+  server.Post(std::string(query_path), handler);
 }
 
+// Invokes the given method on a remote server by making an RPC.
+// Returns an error status if there was a network error or if the server
+// returned an error.
 template <typename Method>
 absl::StatusOr<typename Method::response_type> InvokeRemote(
     const ApiClient& api_client, Method method,
@@ -2654,19 +2666,33 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
   return Parse<typename Method::response_type>(*response_data);
 }
 
+// Returns an API client for sending RPCs to a soia API via the given
+// httplib::Client.
+// The httplib::Client type is referred to as a template parameter so as not to
+// make cpp-httplib a dependency of soia.
+//
+// If you are not using cpp-httplib, you can write your own ApiClient
+// implementation.
 template <typename HttplibClient>
 std::unique_ptr<ApiClient> MakeHttplibApiClient(
-    absl::Nonnull<HttplibClient*> client, std::string pathname) {
+    absl::Nonnull<HttplibClient*> client, absl::string_view query_path) {
   return std::make_unique<soia_internal::HttplibApiClient<HttplibClient*>>(
-      client, std::move(pathname));
+      client, std::string(query_path));
 };
 
+// Returns an API client for sending RPCs to a soia API via the given
+// httplib::Client.
+// The httplib::Client type is referred to as a template parameter so as not to
+// make cpp-httplib a dependency of soia.
+//
+// If you are not using cpp-httplib, you can write your own ApiClient
+// implementation.
 template <typename HttplibClient>
 std::unique_ptr<ApiClient> MakeHttplibApiClient(
-    std::unique_ptr<HttplibClient> client, std::string pathname) {
+    std::unique_ptr<HttplibClient> client, absl::string_view query_path) {
   return std::make_unique<
       soia_internal::HttplibApiClient<std::unique_ptr<HttplibClient>>>(
-      std::move(client), std::move(pathname));
+      std::move(client), std::string(query_path));
 };
 
 }  // namespace api
