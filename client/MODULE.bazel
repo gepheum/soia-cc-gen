@@ -1,4 +1,6 @@
-""" MODULE.bazel """
+"""MODULE.bazel"""
+
+module(name = "soia-client")
 
 # Choose the most recent version available at
 # https://registry.bazel.build/modules/abseil-cpp
