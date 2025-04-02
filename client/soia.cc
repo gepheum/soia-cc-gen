@@ -51,7 +51,7 @@ absl::StatusOr<TypeDescriptor> TypeDescriptor::FromJson(
 
 namespace api {
 
-void HttpHeaders::Add(absl::string_view name, absl::string_view value) {
+void HttpHeaders::Insert(absl::string_view name, absl::string_view value) {
   map_[absl::AsciiStrToLower(name)].emplace_back(value);
 }
 

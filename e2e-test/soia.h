@@ -836,13 +836,22 @@ struct enum_value_field {
 namespace api {
 
 enum class ResponseType {
+  // The method invocation succeeded and the response data is in JSON format.
   kOkJson,
+  // The method invocation succeeded and the response data is in binary format.
   kOkBytes,
+  // The method invocation failed because the request was malformed.
+  // The response data is "bad-request:" followed by an error message.
   kBadRequest,
+  // The method invocation resulted in an error on the server side.
+  // The response data is "server-error:" followed by an error message.
   kServerError,
 };
 
+// Raw response returned by the server.
 struct ResponseData {
+  // The format of this string depends on the response type.
+  // It might be a binary string.
   std::string response_data;
   ResponseType response_type{};
 };
@@ -856,18 +865,20 @@ class HttpHeaders {
   HttpHeaders& operator=(const HttpHeaders&) = default;
   HttpHeaders& operator=(HttpHeaders&&) = default;
 
-  // Adds `value` to the vector of values associated with the give name.
-  void Add(absl::string_view name, absl::string_view value);
+  // Appends `value` to the vector of values associated with the given name
+  // converted to lowercase.
+  void Insert(absl::string_view name, absl::string_view value);
 
-  // Returns the vector of values associated with the given name.
-  // If there is no value associated with the given name, returns an empty
-  // vector.
+  // Returns the vector of values associated with the given name converted to
+  // lowercase. If there is no value associated with the given name, returns an
+  // empty vector.
   const std::vector<std::string>& Get(absl::string_view name) const;
 
-  // Returns the last value associated with the given name, or an empty string
-  // if there is none.
+  // Returns the last value associated with the given name converted to
+  // lowercase, or an empty string if there is none.
   absl::string_view GetLast(absl::string_view name) const;
 
+  // Returns a map view of this HttpHeaders object.
   const absl::flat_hash_map<std::string, std::vector<std::string>>& map()
       const {
     return map_;
@@ -877,35 +888,13 @@ class HttpHeaders {
   absl::flat_hash_map<std::string, std::vector<std::string>> map_;
 };
 
-struct HttpRequestMeta {
-  HttpHeaders headers;
-};
-
-struct HttpResponseMeta {
-  HttpHeaders headers;
-  int status = 0;
-};
-
-struct HttpMeta {
-  using request_meta = HttpRequestMeta;
-  using response_meta = HttpResponseMeta;
-};
-
-struct NoMeta {
-  using request_meta = absl::nullopt_t;
-  using response_meta = absl::nullopt_t;
-};
-
-template <typename Meta = NoMeta>
 class ApiClient {
  public:
-  using meta = Meta;
-
   virtual ~ApiClient() = default;
 
   virtual absl::StatusOr<std::string> operator()(
-      absl::string_view request_data, const typename Meta::request_meta&,
-      typename Meta::response_meta&) const = 0;
+      absl::string_view request_data, const HttpHeaders& request_headers,
+      HttpHeaders& response_headers) const = 0;
 };
 
 }  // namespace api
@@ -2192,35 +2181,22 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
                              std::shared_ptr<UnrecognizedFieldsData>& out);
 
 template <typename HttplibHeaders>
-void MetaToHttplibHeaders(const absl::nullopt_t&, HttplibHeaders& headers) {}
-template <typename RequestOrResponseMeta, typename HttplibHeaders>
-void MetaToHttplibHeaders(const RequestOrResponseMeta& input,
+void SoiaToHttplibHeaders(const soia::api::HttpHeaders& input,
                           HttplibHeaders& out) {
-  for (const auto& [name, values] : input.headers.map()) {
+  for (const auto& [name, values] : input.map()) {
     for (const absl::string_view value : values) {
       out.insert({std::string(name), std::string(value)});
     }
   }
 }
 
-template <typename HttplibResponse>
-void MetaToHttplibResponse(const absl::nullopt_t&, HttplibResponse& response) {}
-template <typename HttplibResponse>
-void MetaToHttplibResponse(const soia::api::HttpResponseMeta& meta,
-                           HttplibResponse& response) {
-  MetaToHttplibHeaders(meta, response.headers);
-  response.status = meta.status;
-}
-
-template <typename HttplibResponse>
-void HttplibResponseToMeta(const HttplibResponse& response, absl::nullopt_t&) {}
-template <typename HttplibResponse>
-void HttplibResponseToMeta(const HttplibResponse& response,
-                           soia::api::HttpResponseMeta& meta) {
-  meta.status = response.status;
-  for (const auto& [name, value] : response.headers) {
-    meta.headers.Add(name, value);
+template <typename HttplibHeaders>
+soia::api::HttpHeaders HttplibToSoiaHeaders(const HttplibHeaders& input) {
+  soia::api::HttpHeaders result;
+  for (const auto& [name, value] : input) {
+    result.Insert(name, value);
   }
+  return result;
 }
 
 constexpr int kOk_200 = 200;
@@ -2417,42 +2393,6 @@ MethodDescriptor MakeMethodDescriptor(Method method) {
 
 std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 
-template <typename ApiImpl, typename Method, typename RequestMeta,
-          typename ResponseMeta>
-absl::StatusOr<typename Method::response_type> InvokeMethod(
-    ApiImpl& api_impl, Method method,
-    const typename Method::request_type& input, const RequestMeta& request_meta,
-    ResponseMeta& response_meta) {
-  return api_impl(method, input, request_meta, response_meta);
-}
-
-// Called if RequestMeta is nullopt_t.
-template <typename ApiImpl, typename Method, typename ResponseMeta>
-absl::StatusOr<typename Method::response_type> InvokeMethod(
-    ApiImpl& api_impl, Method method,
-    const typename Method::request_type& input,
-    const absl::nullopt_t& request_meta, ResponseMeta& response_meta) {
-  return api_impl(method, input, response_meta);
-}
-
-// Called if ResponseMeta is nullopt_t.
-template <typename ApiImpl, typename Method, typename RequestMeta>
-absl::StatusOr<typename Method::response_type> InvokeMethod(
-    ApiImpl& api_impl, Method method,
-    const typename Method::request_type& input, const RequestMeta& request_meta,
-    absl::nullopt_t&) {
-  return api_impl(method, input, request_meta);
-}
-
-// Called if both RequestData and ResponseMeta are nullopt_t.
-template <typename ApiImpl, typename Method>
-absl::StatusOr<typename Method::response_type> InvokeMethod(
-    ApiImpl& api_impl, Method method,
-    const typename Method::request_type& input,
-    const absl::nullopt_t& request_meta, absl::nullopt_t&) {
-  return api_impl(method, input);
-}
-
 template <typename ApiImpl, typename RequestMeta, typename ResponseMeta>
 struct HandleRequestOp {
   HandleRequestOp(ApiImpl* api_impl, absl::string_view request_data,
@@ -2525,7 +2465,7 @@ struct HandleRequestOp {
       return;
     }
     absl::StatusOr<ResponseType> output =
-        InvokeMethod(api_impl, method, *request, request_meta, response_meta);
+        api_impl(method, *request, request_meta, response_meta);
     if (!output.ok()) {
       response_data->response_data =
           absl::StrCat(kServerErrorPrefix, output.status().message());
@@ -2545,27 +2485,28 @@ struct HandleRequestOp {
   }
 };
 
-template <typename HttplibClientPtr, typename Meta>
-class HttplibApiClient : public soia::api::ApiClient<Meta> {
+template <typename HttplibClientPtr>
+class HttplibApiClient : public soia::api::ApiClient {
  public:
   HttplibApiClient(HttplibClientPtr client, std::string pathname)
       : client_(std::move(ABSL_DIE_IF_NULL(client))), pathname_(pathname) {}
 
   absl::StatusOr<std::string> operator()(
       absl::string_view request_data,
-      const typename Meta::request_meta& request_meta,
-      typename Meta::response_meta& response_meta) const {
+      const soia::api::HttpHeaders& request_headers,
+      soia::api::HttpHeaders& response_headers) const {
     const std::string& content_type =
         soia_internal::GetHttpContentType(request_data);
     auto headers = decltype(HttplibClientPtr()->Get("")->headers)();
-    MetaToHttplibHeaders(request_meta, headers);
+    SoiaToHttplibHeaders(request_headers, headers);
     auto result = client_->Post(pathname_, headers, request_data.data(),
                                 request_data.length(), content_type);
     if (result) {
-      HttplibResponseToMeta(*result, response_meta);
+      response_headers = HttplibToSoiaHeaders(result->headers);
       return std::move(result->body);
     } else {
       // HTTP error.
+      response_headers = {};
       std::stringstream ss;
       ss << "HTTP error: " << result.error();
       return {absl::UnknownError(ss.str())};
@@ -2577,29 +2518,6 @@ class HttplibApiClient : public soia::api::ApiClient<Meta> {
   const std::string pathname_;
 };
 
-template <typename ResponseMeta>
-ResponseMeta MakeResponseMeta() {
-  return ResponseMeta();
-}
-template <>
-inline absl::nullopt_t MakeResponseMeta<absl::nullopt_t>() {
-  return absl::nullopt;
-}
-
-template <typename HttplibRequest>
-absl::nullopt_t HttplibRequestToMeta(const HttplibRequest&, soia::api::NoMeta) {
-  return absl::nullopt;
-}
-template <typename HttplibRequest>
-soia::api::HttpRequestMeta HttplibRequestToMeta(const HttplibRequest& input,
-                                                soia::api::HttpMeta) {
-  soia::api::HttpRequestMeta result;
-  for (const auto& [name, value] : input.headers) {
-    result.headers.Add(name, value);
-  }
-  return result;
-}
-
 }  // namespace soia_internal
 
 namespace soia {
@@ -2607,14 +2525,13 @@ namespace api {
 
 // On the server side, parses the content of a user request and invoke the
 // appropriate method on the given API implementation.
-template <typename ApiImpl, typename RequestMeta = absl::nullopt_t,
-          typename ResponseMeta = absl::nullopt_t>
+template <typename ApiImpl>
 ResponseData HandleRequest(ApiImpl& api_impl, absl::string_view request_data,
-                           const RequestMeta& request_meta = absl::nullopt,
-                           ResponseMeta& response_meta = absl::nullopt) {
+                           const HttpHeaders& request_headers,
+                           HttpHeaders& response_headers) {
   soia_internal::assert_unique_method_numbers<typename ApiImpl::methods>();
-  return soia_internal::HandleRequestOp(&api_impl, request_data, &request_meta,
-                                        &response_meta)
+  return soia_internal::HandleRequestOp(&api_impl, request_data,
+                                        &request_headers, &response_headers)
       .Run();
 }
 
@@ -2622,9 +2539,6 @@ template <typename HttplibServer, typename ApiImpl>
 void MountApiToHttplibServer(HttplibServer& server, absl::string_view pathname,
                              std::shared_ptr<ApiImpl> api_impl) {
   ABSL_CHECK_NE(api_impl, nullptr);
-  using Meta = typename ApiImpl::meta;
-  using RequestMeta = typename Meta::request_meta;
-  using ResponseMeta = typename Meta::response_meta;
   const typename HttplibServer::Handler handler =  //
       [api_impl](const auto& req, auto& resp) {
         absl::string_view request_data;
@@ -2639,13 +2553,12 @@ void MountApiToHttplibServer(HttplibServer& server, absl::string_view pathname,
         } else {
           request_data = req.body;
         }
-        const RequestMeta request_meta =
-            soia_internal::HttplibRequestToMeta(req, Meta());
-        ResponseMeta response_meta =
-            soia_internal::MakeResponseMeta<ResponseMeta>();
-        ResponseData response_data =
-            HandleRequest(*api_impl, request_data, request_meta, response_meta);
-        soia_internal::MetaToHttplibResponse(response_meta, resp);
+        const HttpHeaders request_headers =
+            soia_internal::HttplibToSoiaHeaders(req.headers);
+        HttpHeaders response_headers;
+        ResponseData response_data = HandleRequest(
+            *api_impl, request_data, request_headers, response_headers);
+        soia_internal::SoiaToHttplibHeaders(response_headers, resp.headers);
 
         const std::string& content_type =
             soia_internal::GetHttpContentType(response_data.response_data);
@@ -2675,20 +2588,19 @@ void MountApiToHttplibServer(HttplibServer& server, absl::string_view pathname,
   server.Post(std::string(pathname), handler);
 }
 
-template <typename Method, typename Meta>
+template <typename Method>
 absl::StatusOr<typename Method::response_type> InvokeRemote(
-    const ApiClient<Meta>& api_client, Method method,
+    const ApiClient& api_client, Method method,
     const typename Method::request_type& request,
-    const typename Meta::request_meta& request_meta,
-    typename Meta::response_meta* response_meta = nullptr) {
+    const HttpHeaders& request_headers,
+    HttpHeaders* response_headers = nullptr) {
   const std::string request_data = absl::StrCat(
       Method::kMethodName, ":", Method::kNumber, "::", ToDenseJson(request));
-  auto response_meta_tmp =
-      soia_internal::MakeResponseMeta<typename Meta::response_meta>();
+  HttpHeaders response_headers_tmp;
   absl::StatusOr<std::string> response_data =
-      api_client(request_data, request_meta, response_meta_tmp);
-  if (response_meta != nullptr) {
-    *response_meta = std::move(response_meta_tmp);
+      api_client(request_data, request_headers, response_headers_tmp);
+  if (response_headers != nullptr) {
+    *response_headers = std::move(response_headers_tmp);
   }
   if (!response_data.ok()) {
     return std::move(response_data).status();
@@ -2701,29 +2613,18 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
   return Parse<typename Method::response_type>(*response_data);
 }
 
-// If Meta is NoMeta.
-template <typename Method>
-absl::StatusOr<typename Method::response_type> InvokeRemote(
-    const ApiClient<NoMeta>& api_client, Method method,
-    const typename Method::request_type& request) {
-  return InvokeRemote(api_client, method, request, absl::nullopt);
-}
-
-template <typename HttplibClient, typename Meta = NoMeta>
-std::unique_ptr<ApiClient<Meta>> MakeHttplibApiClient(
-    absl::Nonnull<HttplibClient*> client, std::string pathname,
-    Meta meta = NoMeta()) {
-  return std::make_unique<
-      soia_internal::HttplibApiClient<HttplibClient*, Meta>>(
+template <typename HttplibClient>
+std::unique_ptr<ApiClient> MakeHttplibApiClient(
+    absl::Nonnull<HttplibClient*> client, std::string pathname) {
+  return std::make_unique<soia_internal::HttplibApiClient<HttplibClient*>>(
       client, std::move(pathname));
 };
 
-template <typename HttplibClient, typename Meta = NoMeta>
-std::unique_ptr<ApiClient<Meta>> MakeHttplibApiClient(
-    std::unique_ptr<HttplibClient> client, std::string pathname,
-    Meta meta = NoMeta()) {
+template <typename HttplibClient>
+std::unique_ptr<ApiClient> MakeHttplibApiClient(
+    std::unique_ptr<HttplibClient> client, std::string pathname) {
   return std::make_unique<
-      soia_internal::HttplibApiClient<std::unique_ptr<HttplibClient>, Meta>>(
+      soia_internal::HttplibApiClient<std::unique_ptr<HttplibClient>>>(
       std::move(client), std::move(pathname));
 };
 

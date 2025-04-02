@@ -241,11 +241,8 @@ EnumValueIsMatcher<Option, InnerMatcher> EnumValueIs(InnerMatcher matcher) {
 }
 
 template <typename FakeOrMockApiImpl>
-class ApiClientForTesting
-    : public ::soia::api::ApiClient<typename FakeOrMockApiImpl::meta> {
+class ApiClientForTesting : public ::soia::api::ApiClient {
  public:
-  using meta = typename FakeOrMockApiImpl::meta;
-
   explicit ApiClientForTesting(FakeOrMockApiImpl* api_impl)
       : api_impl_(*ABSL_DIE_IF_NULL(api_impl)) {}
 
@@ -253,10 +250,10 @@ class ApiClientForTesting
 
   absl::StatusOr<std::string> operator()(
       absl::string_view request_data,
-      const typename meta::request_meta& request_meta,
-      typename meta::response_meta& response_meta) const override {
-    return ::soia::api::HandleRequest(api_impl_, request_data, request_meta,
-                                      response_meta)
+      const soia::api::HttpHeaders& request_headers,
+      soia::api::HttpHeaders& response_headers) const override {
+    return ::soia::api::HandleRequest(api_impl_, request_data, request_headers,
+                                      response_headers)
         .response_data;
   }
 
@@ -271,8 +268,8 @@ namespace soia {
 namespace api {
 
 template <typename FakeOrMockApiImpl>
-std::unique_ptr<::soia::api::ApiClient<typename FakeOrMockApiImpl::meta>>
-MakeApiClientForTesting(absl::Nonnull<FakeOrMockApiImpl*> api_impl) {
+std::unique_ptr<::soia::api::ApiClient> MakeApiClientForTesting(
+    absl::Nonnull<FakeOrMockApiImpl*> api_impl) {
   return std::make_unique<
       testing::soia_internal::ApiClientForTesting<FakeOrMockApiImpl>>(api_impl);
 }

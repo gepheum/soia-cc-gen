@@ -1210,9 +1210,9 @@ TEST(SoialibTest, ParseBytesReturnsError) {
 
 TEST(SoialibTest, HttpHeaders) {
   soia::api::HttpHeaders headers;
-  headers.Add("accept", "A");
-  headers.Add("Accept", "B");
-  headers.Add("origin", "C");
+  headers.Insert("accept", "A");
+  headers.Insert("Accept", "B");
+  headers.Insert("origin", "C");
   EXPECT_THAT(headers.Get("ACCEPT"), ElementsAre("A", "B"));
   EXPECT_THAT(headers.Get("Z"), IsEmpty());
   EXPECT_THAT(headers.GetLast("accept"), "B");

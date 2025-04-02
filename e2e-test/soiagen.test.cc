@@ -611,88 +611,35 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
               UnorderedElementsAre("first_name", "last_name"));
 }
 
-class FakeApiImplNoMeta {
- public:
-  using meta = soia::api::NoMeta;
-
-  using methods = std::tuple<soiagen_methods::MyProcedure,
-                             soiagen_methods::WithExplicitNumber>;
-
-  ::soiagen_enums::JsonValue operator()(
-      soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request) {
-    return ::soiagen_enums::JsonValue::wrap_number(request.x);
-  }
-
-  absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> operator()(
-      soiagen_methods::WithExplicitNumber,
-      const std::vector<::soiagen_structs::Point>& request) const {
-    if (request.empty()) {
-      return absl::UnknownError("no point");
-    }
-    return absl::nullopt;
-  }
-};
-
-TEST(SoialibTest, SoiaApi) {
-  FakeApiImplNoMeta api_impl;
-  std::unique_ptr<soia::api::ApiClient<soia::api::NoMeta>> api_client =
-      soia::api::MakeApiClientForTesting(&api_impl);
-
-  {
-    const absl::StatusOr<::soiagen_enums::JsonValue> result =
-        ::soia::api::InvokeRemote(*api_client, soiagen_methods::MyProcedure(),
-                                  soiagen_structs::Point{.x = 1, .y = 2});
-    EXPECT_THAT(result,
-                IsOkAndHolds(::soiagen_enums::JsonValue::wrap_number(1.0)));
-  }
-
-  {
-    const absl::StatusOr<::absl::optional<::soiagen_enums::JsonValue>> result =
-        ::soia::api::InvokeRemote(*api_client,
-                                  soiagen_methods::WithExplicitNumber(), {});
-    EXPECT_EQ(result.status(), absl::UnknownError("Server error: no point"));
-  }
-
-  {
-    const absl::StatusOr<std::string> result =
-        ::soia::api::InvokeRemote(*api_client, soiagen_methods::True(), "foo");
-    EXPECT_EQ(result.status(),
-              absl::UnknownError(
-                  "Bad request: Method not found: True; number: 2615726"));
-  }
-}
-
 class FakeApiImplWithMeta {
  public:
-  using meta = soia::api::HttpMeta;
-
   using methods = std::tuple<soiagen_methods::MyProcedure>;
 
   ::soiagen_enums::JsonValue operator()(
       soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request,
-      const ::soia::api::HttpRequestMeta& request_meta,
-      soia::api::HttpResponseMeta& response_meta) {
-    response_meta.headers = request_meta.headers;
+      const ::soia::api::HttpHeaders& request_headers,
+      soia::api::HttpHeaders& response_headers) {
+    response_headers = request_headers;
     return ::soiagen_enums::JsonValue::wrap_number(request.x);
   }
 };
 
 TEST(SoialibTest, SoiaApiWithMetadata) {
   FakeApiImplWithMeta api_impl;
-  std::unique_ptr<soia::api::ApiClient<soia::api::HttpMeta>> api_client =
+  std::unique_ptr<soia::api::ApiClient> api_client =
       soia::api::MakeApiClientForTesting(&api_impl);
 
   {
-    soia::api::HttpRequestMeta request_meta;
-    request_meta.headers.Add("origin", "foo");
-    soia::api::HttpResponseMeta response_meta;
+    soia::api::HttpHeaders request_headers;
+    request_headers.Insert("origin", "foo");
+    soia::api::HttpHeaders response_headers;
     const absl::StatusOr<::soiagen_enums::JsonValue> result =
         ::soia::api::InvokeRemote(*api_client, soiagen_methods::MyProcedure(),
                                   soiagen_structs::Point{.x = 1, .y = 2},
-                                  request_meta, &response_meta);
+                                  request_headers, &response_headers);
     EXPECT_THAT(result,
                 IsOkAndHolds(::soiagen_enums::JsonValue::wrap_number(1.0)));
-    EXPECT_THAT(response_meta.headers.map(),
+    EXPECT_THAT(response_headers.map(),
                 UnorderedElementsAre(Pair("origin", ElementsAre("foo"))));
   }
 }
