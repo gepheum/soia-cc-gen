@@ -613,7 +613,8 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
 
 class FakeApiImplWithMeta {
  public:
-  using methods = std::tuple<soiagen_methods::MyProcedure>;
+  using methods =
+      std::tuple<soiagen_methods::MyProcedure, soiagen_methods::ListUsers>;
 
   ::soiagen_enums::JsonValue operator()(
       soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request,
@@ -621,6 +622,14 @@ class FakeApiImplWithMeta {
       soia::api::HttpHeaders& response_headers) {
     response_headers = request_headers;
     return ::soiagen_enums::JsonValue::wrap_number(request.x);
+  }
+
+  absl::StatusOr<soiagen_methods::ListUsersResponse> operator()(
+      soiagen_methods::ListUsers,
+      const ::soiagen_methods::ListUsersRequest& request,
+      const ::soia::api::HttpHeaders& request_headers,
+      soia::api::HttpHeaders& response_headers) {
+    return absl::UnknownError("unsupported");
   }
 };
 

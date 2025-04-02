@@ -2523,8 +2523,48 @@ class HttplibApiClient : public soia::api::ApiClient {
 namespace soia {
 namespace api {
 
-// On the server side, parses the content of a user request and invoke the
+// On the server side, parses the content of a user request and invokes the
 // appropriate method on the given API implementation.
+//
+// ApiImpl must satisfy the following requirements:
+//   1. It must have a public `methods` type alias which resolves to a tuple of
+// //     method types.
+//   2. For each method, it must have a member function with this signature:
+//        absl::StatusOr<typename Method::response_type> operator()(
+//            Method method,
+//            const typename Method::request_type& request,
+//            const HttpHeaders& request_headers,
+//            HttpHeaders& response_headers);
+//
+// For example:
+//
+//   class MyApiImpl {
+//    public:
+//     using methods = std::tuple<
+//          soiagen_methods::ListUsers,
+//          soiagen_methods::GetUser>;
+//
+//     absl::StatusOr<soiagen_methods::ListUsersResponse> operator()(
+//         soiagen_methods::ListUsers,
+//         const soiagen_methods::ListUsersRequest& request,
+//         const HttpHeaders& request_headers,
+//         HttpHeaders& response_headers) const {
+//       ...
+//     }
+//
+//     absl::StatusOr<soiagen_methods::GetUserResponse> operator()(
+//         soiagen_methods::GetUser,
+//         const soiagen_methods::GetUserRequest& request,
+//         const HttpHeaders& request_headers,
+//         HttpHeaders& response_headers) const {
+//       ...
+//     }
+//   };
+//
+// If you are using cpp-httplib (https://github.com/yhirose/cpp-httplib) as
+// your server library, you don't need to call HandleRequest, you can simply
+// call InstallApiOnHttplibServer. If you are using another server library,
+// call HandleRequest in the logic for installing a soia API on your server.
 template <typename ApiImpl>
 ResponseData HandleRequest(ApiImpl& api_impl, absl::string_view request_data,
                            const HttpHeaders& request_headers,
@@ -2536,8 +2576,9 @@ ResponseData HandleRequest(ApiImpl& api_impl, absl::string_view request_data,
 }
 
 template <typename HttplibServer, typename ApiImpl>
-void MountApiToHttplibServer(HttplibServer& server, absl::string_view pathname,
-                             std::shared_ptr<ApiImpl> api_impl) {
+void InstallApiOnHttplibServer(HttplibServer& server,
+                               absl::string_view pathname,
+                               std::shared_ptr<ApiImpl> api_impl) {
   ABSL_CHECK_NE(api_impl, nullptr);
   const typename HttplibServer::Handler handler =  //
       [api_impl](const auto& req, auto& resp) {

@@ -19,9 +19,9 @@
 namespace {
 using ::absl_testing::IsOkAndHolds;
 using ::soia::api::HttpHeaders;
+using ::soia::api::InstallApiOnHttplibServer;
 using ::soia::api::InvokeRemote;
 using ::soia::api::MakeHttplibApiClient;
-using ::soia::api::MountApiToHttplibServer;
 using ::soiagen_methods::ListUsers;
 using ::soiagen_methods::ListUsersRequest;
 using ::soiagen_methods::ListUsersResponse;
@@ -68,7 +68,7 @@ TEST(SoiaApiTest, TestServerAndClientWithMetadata) {
   httplib::Server server;
 
   auto api_impl = std::make_shared<ApiImpl>();
-  MountApiToHttplibServer(server, "/myapi", api_impl);
+  InstallApiOnHttplibServer(server, "/myapi", api_impl);
 
   api_impl->AddUser({
       .id = 102,
