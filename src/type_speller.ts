@@ -24,7 +24,9 @@ export class TypeSpeller {
         if (record.modulePath !== this.origin.path || opts.forceNamespace) {
           // The record is located in an imported module.
           const path = record.modulePath;
-          this.includes.add('"soiagen/' + path.replace(/\.soia$/, '.h"'));
+          if (record.modulePath !== this.origin.path) {
+            this.includes.add('"soiagen/' + path.replace(/\.soia$/, '.h"'));
+          }
           const namespace = modulePathToNamespace(path);
           qualifiedName = `::${namespace}::${qualifiedName}`;
         }

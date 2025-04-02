@@ -1793,7 +1793,6 @@ class CcLibFilesGenerator {
       source.includes.push(`#include "${headerPath}"`);
       testingHeader.includes.push(`#include "${headerPath}"`);
     }
-    testingHeader.includes.push(`#include "soia.testing.h"`);
     for (const h of [...this.includes].sort()) {
       header.includes.push(`#include ${h}`);
       testingHeader.includes.push(
