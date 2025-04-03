@@ -603,7 +603,7 @@ TEST(SoiagenTest, IsRecord) {
   static_assert(soia::reflection::IsRecord<Weekday>());
   static_assert(!soia::reflection::IsRecord<std::string>());
 }
-  
+
 TEST(SoiagenTest, ForEachFieldOfEnum) {
   FieldNameCollector collector;
   soia::reflection::ForEachField<StatusEnum>(collector);
