@@ -1,7 +1,7 @@
 // Soia client library
 
 #ifndef SOIA_SOIA_H_VERSION
-#define SOIA_SOIA_H_VERSION 20250401
+#define SOIA_SOIA_H_VERSION 20250403
 
 #include <algorithm>
 #include <cmath>
@@ -707,6 +707,28 @@ class must_init {
 
  private:
   T value_;
+};
+
+template <typename T>
+class must_init<std::vector<T>> {
+ public:
+  using value_type = std::vector<T>;
+  must_init(value_type value) { value_ = std::move(value); }
+  must_init(std::initializer_list<T> l) : must_init(value_type(std::move(l))) {}
+  value_type operator*() && { return std::move(value_); }
+ private:
+  value_type value_;
+};
+
+template <typename T, typename GetKey>
+class must_init<soia::keyed_items<T, GetKey>> {
+ public:
+  using value_type = soia::keyed_items<T, GetKey>;
+  must_init(value_type value) { value_ = std::move(value); }
+  must_init(std::initializer_list<T> l) : must_init(value_type(std::move(l))) {}
+  value_type operator*() && { return std::move(value_); }
+ private:
+  value_type value_;
 };
 
 struct identity {

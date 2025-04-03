@@ -111,6 +111,14 @@ struct User {
   }
 };
 
+TEST(SoialibTest, MustInit) {
+  soia::must_init<std::string> s = "foo";
+  soia::must_init<absl::optional<std::string>> o = absl::nullopt;
+  soia::must_init<std::vector<std::string>> empty = {};
+  soia::must_init<std::vector<std::string>> v = {"foo"};
+  soia::must_init<soia::keyed_items<User, get_id>> keyed_items = {};
+}
+
 template <typename H>
 H AbslHashValue(H h, const User& user) {
   return H::combine(std::move(h), user.id, user.name);
