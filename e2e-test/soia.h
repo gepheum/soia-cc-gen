@@ -716,6 +716,7 @@ class must_init<std::vector<T>> {
   must_init(value_type value) { value_ = std::move(value); }
   must_init(std::initializer_list<T> l) : must_init(value_type(std::move(l))) {}
   value_type operator*() && { return std::move(value_); }
+
  private:
   value_type value_;
 };
@@ -727,6 +728,7 @@ class must_init<soia::keyed_items<T, GetKey>> {
   must_init(value_type value) { value_ = std::move(value); }
   must_init(std::initializer_list<T> l) : must_init(value_type(std::move(l))) {}
   value_type operator*() && { return std::move(value_); }
+
  private:
   value_type value_;
 };
