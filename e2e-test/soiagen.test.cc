@@ -627,7 +627,7 @@ class FakeApiImplWithMeta {
       std::tuple<soiagen_methods::MyProcedure, soiagen_methods::ListUsers>;
 
   ::soiagen_enums::JsonValue operator()(
-      soiagen_methods::MyProcedure, const ::soiagen_structs::Point& request,
+      soiagen_methods::MyProcedure, ::soiagen_structs::Point request,
       const ::soia::api::HttpHeaders& request_headers,
       soia::api::HttpHeaders& response_headers) {
     response_headers = request_headers;

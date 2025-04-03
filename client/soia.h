@@ -2497,7 +2497,7 @@ struct HandleRequestOp {
       return;
     }
     absl::StatusOr<ResponseType> output =
-        api_impl(method, *request, request_meta, response_meta);
+        api_impl(method, std::move(*request), request_meta, response_meta);
     if (!output.ok()) {
       response_data->response_data =
           absl::StrCat(kServerErrorPrefix, output.status().message());
@@ -2564,7 +2564,7 @@ namespace api {
 //   2. For each method, it must have a member function with this signature:
 //        absl::StatusOr<typename Method::response_type> operator()(
 //            Method method,
-//            const typename Method::request_type& request,
+//            typename Method::request_type request,
 //            const HttpHeaders& request_headers,
 //            HttpHeaders& response_headers);
 //
@@ -2578,7 +2578,7 @@ namespace api {
 //
 //     absl::StatusOr<soiagen_methods::ListUsersResponse> operator()(
 //         soiagen_methods::ListUsers,
-//         const soiagen_methods::ListUsersRequest& request,
+//         soiagen_methods::ListUsersRequest request,
 //         const HttpHeaders& request_headers,
 //         HttpHeaders& response_headers) const {
 //       ...
@@ -2586,7 +2586,7 @@ namespace api {
 //
 //     absl::StatusOr<soiagen_methods::GetUserResponse> operator()(
 //         soiagen_methods::GetUser,
-//         const soiagen_methods::GetUserRequest& request,
+//         soiagen_methods::GetUserRequest request,
 //         const HttpHeaders& request_headers,
 //         HttpHeaders& response_headers) const {
 //       ...

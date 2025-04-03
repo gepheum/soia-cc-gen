@@ -36,7 +36,7 @@ class ApiImpl {
   using methods = std::tuple<soiagen_methods::ListUsers>;
 
   absl::StatusOr<ListUsersResponse> operator()(
-      ListUsers, const ListUsersRequest& request,
+      ListUsers, ListUsersRequest request,
       const soia::api::HttpHeaders& request_headers,
       soia::api::HttpHeaders& response_headers) const {
     if (request.country.empty()) {
