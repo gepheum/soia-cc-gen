@@ -19,7 +19,8 @@ namespace testing {
 namespace soiagen {
 template <typename Struct>
 struct StructIs {
-  static_assert(false, "not a soia struct");
+  static_assert(soia::reflection::IsStruct<Struct>());
+  static_assert(false, "did you forget to include the *.testing.h file?");
 };
 }  // namespace soiagen
 

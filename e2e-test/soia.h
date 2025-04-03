@@ -2370,6 +2370,11 @@ constexpr bool IsEnum() {
   return soia_internal::TypeAdapter<T>::IsEnum();
 }
 
+template <typename T>
+constexpr bool IsRecord() {
+  return IsStruct<T>() || IsEnum<T>();
+}
+
 // Calls f(field) for each field in the soia-generated datatype.
 // The type of the single argument passed to f is one of: struct_field,
 // enum_const_field, enum_value_field.
