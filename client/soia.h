@@ -2529,7 +2529,8 @@ class HttplibApiClient : public soia::api::ApiClient {
       soia::api::HttpHeaders& response_headers) const {
     const std::string& content_type =
         soia_internal::GetHttpContentType(request_data);
-    auto headers = decltype(HttplibClientPtr()->Get("")->headers)();
+    auto headers =
+        decltype(std::declval<HttplibClientPtr>()->Get("")->headers)();
     SoiaToHttplibHeaders(request_headers, headers);
     auto result = client_->Post(query_path_, headers, request_data.data(),
                                 request_data.length(), content_type);
