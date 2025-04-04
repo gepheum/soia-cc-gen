@@ -1,4 +1,4 @@
-name: Soia Python Generator CI
+name: Soia C++ Generator CI
 
 on:
   push:
