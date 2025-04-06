@@ -29,6 +29,8 @@ soia source directory, with the ".soia" extension removed, and slashes
 replaced with underscores.
 
 ```c++
+#include "soiagen/user.h"
+
 using ::soiagen_user::User;
 using ::soiagen_user::UserRegistry;
 ```
@@ -345,4 +347,44 @@ int main() {
 
   // ...
 }
+```
+
+### Writing unit tests with GoogleTest
+
+Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/example.test.cc).
+
+#### Struct matchers
+
+```c++
+const User john = {
+    .name = "John Doe",
+    .pets =
+        {
+            {.height_in_meters = 1.67, .name = "Cheeta", .picture = "🐒"},
+        },
+    .quote = "Life is like a box of chocolates.",
+    .user_id = 42,
+};
+
+EXPECT_THAT(john, (StructIs<User>{
+                      // Only the specified fields are tested
+                      .pets = testing::ElementsAre(StructIs<User::Pet>{
+                          .height_in_meters = testing::FloatNear(1.7, 0.1),
+                      }),
+                      .quote = testing::StartsWith("Life is"),
+                      .user_id = 42,
+                  }));
+```
+
+#### Enum matches
+
+```c++
+User::SubscriptionStatus john_status = soiagen::kFree;
+User::SubscriptionStatus jade_status =
+    soiagen::wrap_trial_start_time(absl::FromUnixMillis(1743682787000));
+
+EXPECT_THAT(john_status, testing::Eq(soiagen::kFree));
+
+EXPECT_THAT(jade_status, IsTrialStartTime());
+EXPECT_THAT(jade_status, IsTrialStartTime(testing::Gt(absl::UnixEpoch())));
 ```
