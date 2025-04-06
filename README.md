@@ -230,6 +230,16 @@ const User& tarzan = soiagen_user::k_tarzan();
 assert(tarzan.name == "Tarzan");
 ```
 
+### Soia APIs
+
+#### Starting a soia API on an HTTP server
+
+Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/api_server.cc).
+
+#### Calling a soia API on a remote server
+
+Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/api_client.cc).
+
 ### Dynamic reflection
 
 ```c++
@@ -252,101 +262,30 @@ assert(reserialized_type_descriptor.ok());
 Static reflection allows you to inspect and modify values of generated
 soia types in a typesafe maneer.
 
+See [string_capitalizer.h](https://github.com/gepheum/soia-cc-example/blob/main/string_capitalizer.h).
+
 ```c++
+User tarzan_copy = soiagen_user::k_tarzan();
 // CapitalizeStrings recursively capitalizes all the strings found within a
 // soia value.
+CapitalizeStrings(tarzan_copy);
 
-template <typename T>
-typename std::enable_if_t<!soia::reflection::IsRecord<T>()>
-CapitalizeStrings(T&);
-void CapitalizeStrings(std::string& s);
-template <typename T>
-void CapitalizeStrings(std::vector<T>& vector);
-template <typename T, typename GetKey>
-void CapitalizeStrings(soia::keyed_items<T, GetKey>& vector);
-template <typename T>
-void CapitalizeStrings(absl::optional<T>& optional);
-template <typename T>
-typename std::enable_if_t<soia::reflection::IsRecord<T>()>
-CapitalizeStrings(T& record);
+std::cout << tarzan_copy << "\n";
+// {
+//   .user_id: 123,
+//   .name: "TARZAN",
+//   .quote: "AAAAAAAAAAYAAAAAAAAAAYAAAAAAAAAA",
+//   .pets: {
+//     {
+//       .name: "CHEETA",
+//       .height_in_meters: 1.67,
+//       .picture: "🐒",
+//     },
+//   },
+//   .subscription_status: ::soiagen::wrap_trial_start_time(absl::FromUnixMillis(1743592409000 /* 2025-04-02T11:13:29+00:00 */)),
+// }
 
-template <typename T>
-typename std::enable_if_t<!soia::reflection::IsRecord<T>()>
-CapitalizeStrings(T&) {}
-
-void CapitalizeStrings(std::string& s) { absl::AsciiStrToUpper(&s); }
-
-template <typename T>
-void CapitalizeStrings(std::vector<T>& vector) {
-  for (T& value : vector) {
-    CapitalizeStrings(value);
-  }
-}
-
-template <typename T, typename GetKey>
-void CapitalizeStrings(soia::keyed_items<T, GetKey>& vector) {
-  for (T& value : vector) {
-    CapitalizeStrings(value);
-  }
-}
-
-template <typename T>
-void CapitalizeStrings(absl::optional<T>& optional) {
-  if (optional.has_value()) {
-    CapitalizeStrings(*optional);
-  }
-}
-
-template <typename T>
-struct CapitalizeStringsVisitor {
-  T& record;
-
-  template <typename Getter, typename Value>
-  void operator()(soia::reflection::struct_field<Getter, Value>) {
-    CapitalizeStrings(Getter()(record));
-  }
-
-  template <typename Const>
-  void operator()(soia::reflection::enum_const_field<Const>) {}
-
-  template <typename Option, typename Value>
-  void operator()(soia::reflection::enum_value_field<Option, Value>) {
-    auto* value = Option::get_or_null(record);
-    if (value != nullptr) {
-      CapitalizeStrings(*value);
-    }
-  }
-};
-
-template <typename T>
-typename std::enable_if_t<soia::reflection::IsRecord<T>()>
-CapitalizeStrings(T& record) {
-  soia::reflection::ForEachField<T>(CapitalizeStringsVisitor<T>{record});
-}
-
-int main() {
-  // ...
-
-  User tarzan_copy = soiagen_user::k_tarzan();
-  CapitalizeStrings(tarzan_copy);
-
-  std::cout << tarzan_copy << "\n";
-  // {
-  //   .user_id: 123,
-  //   .name: "TARZAN",
-  //   .quote: "AAAAAAAAAAYAAAAAAAAAAYAAAAAAAAAA",
-  //   .pets: {
-  //     {
-  //       .name: "CHEETA",
-  //       .height_in_meters: 1.67,
-  //       .picture: "🐒",
-  //     },
-  //   },
-  //   .subscription_status: ::soiagen::wrap_trial_start_time(absl::FromUnixMillis(1743592409000 /* 2025-04-02T11:13:29+00:00 */)),
-  // }
-
-  // ...
-}
+// ...
 ```
 
 ### Writing unit tests with GoogleTest
@@ -376,7 +315,7 @@ EXPECT_THAT(john, (StructIs<User>{
                   }));
 ```
 
-#### Enum matches
+#### Enum matchers
 
 ```c++
 User::SubscriptionStatus john_status = soiagen::kFree;
