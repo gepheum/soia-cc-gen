@@ -21,16 +21,21 @@ For more information, see this C++ project [example](https://github.com/gepheum/
 
 The examples below are for the code generated from [this](https://github.com/gepheum/soia-cc-example/blob/main/soia_src/user.soia) .soia file.
 
+### Referring to generated symbols.
+
+Every generated symbol lives in a namespace called `soiagen_${path}`,
+where `${path}` is the path to the .soia file relative from the root of the
+soia source directory, with the ".soia" extension removed, and slashes
+replaced with underscores.
+
+```c++
+using ::soiagen_user::User;
+using ::soiagen_user::UserRegistry;
+```
+
 ### Constructing structs
 
 ```c++
-// Every generated symbol lives in a namespace called `soiagen_${path}`,
-// where ${path} is the path to the .soia file relative from the root of the
-// soia source directory, with the ".soia" extension removed, and slashes
-// replaced with underscores.
-using ::soiagen_user::User;
-using ::soiagen_user::UserRegistry;
-
 // You can construct a struct like this:
 User john;
 john.user_id = 42;
@@ -144,6 +149,8 @@ lara_status.visit(Visitor());
 
 ### Serialization
 
+Use `ToDenseJson`, `ToReadableJson` or `ToBytes` to serialize a soia value.
+
 ```c++
 // Serialize a soia value to JSON with ToDenseJson or ToReadableJson.
 std::cout << soia::ToDenseJson(john) << "\n";
@@ -171,18 +178,19 @@ std::cout << soia::ToBytes(john).as_string() << "\n";
 
 ### Deserialization
 
+Use `Parse` to deserialize a soia value from JSON or binary format.
+
 ```c++
-// Use Parse to deserialize a soia value from JSON or binary format.
 absl::StatusOr<User> maybe_john = soia::Parse<User>(soia::ToDenseJson(john));
 assert(maybe_john.ok() && *maybe_john == john);
 ```
 
 ### Keyed arrays
 
-```c++
-// A soia::keyed_items<T, get_key> is a container that stores items of type T
-// and allows for fast lookups by key using a hash table
+A `keyed_items<T, get_key>` is a container that stores items of type T
+and allows for fast lookups by key using a hash table.
 
+```c++
 UserRegistry user_registry;
 soia::keyed_items<User, soiagen::get_user_id<>>& users = user_registry.users;
 users.push_back(john);
@@ -201,8 +209,9 @@ assert(users.find_or_default(45).name == "");
 
 ### Equality and hashing
 
+Soia structs and enums are equality comparable and hashable.
+
 ```c++
-// Soia structs and enums are equality comparable and hashable.
 absl::flat_hash_set<User> user_set;
 user_set.insert(john);
 user_set.insert(jane);
@@ -238,10 +247,10 @@ assert(reserialized_type_descriptor.ok());
 
 ### Static reflection
 
-```c++
-// Static reflection allows you to inspect and modify values of generated
-// soia types in a typesafe maneer.
+Static reflection allows you to inspect and modify values of generated
+soia types in a typesafe maneer.
 
+```c++
 // CapitalizeStrings recursively capitalizes all the strings found within a
 // soia value.
 
@@ -313,7 +322,7 @@ CapitalizeStrings(T& record) {
   soia::reflection::ForEachField<T>(CapitalizeStringsVisitor<T>{record});
 }
 
-void main() {
+int main() {
   // ...
 
   User tarzan_copy = soiagen_user::k_tarzan();
@@ -333,5 +342,7 @@ void main() {
   //   },
   //   .subscription_status: ::soiagen::wrap_trial_start_time(absl::FromUnixMillis(1743592409000 /* 2025-04-02T11:13:29+00:00 */)),
   // }
+
+  // ...
 }
 ```
