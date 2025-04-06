@@ -1740,39 +1740,39 @@ void ReflectionPrimitiveTypeAdapter::Append(
     soia::reflection::PrimitiveType input, ReadableJson& out) {
   switch (input) {
     case soia::reflection::PrimitiveType::kBool: {
-      out.out += "\"BOOL\"";
+      out.out += "\"bool\"";
       break;
     }
     case soia::reflection::PrimitiveType::kInt32: {
-      out.out += "\"INT32\"";
+      out.out += "\"int32\"";
       break;
     }
     case soia::reflection::PrimitiveType::kInt64: {
-      out.out += "\"INT64\"";
+      out.out += "\"int64\"";
       break;
     }
     case soia::reflection::PrimitiveType::kUint64: {
-      out.out += "\"UINT64\"";
+      out.out += "\"uint64\"";
       break;
     }
     case soia::reflection::PrimitiveType::kFloat32: {
-      out.out += "\"FLOAT32\"";
+      out.out += "\"float32\"";
       break;
     }
     case soia::reflection::PrimitiveType::kFloat64: {
-      out.out += "\"FLOAT64\"";
+      out.out += "\"float64\"";
       break;
     }
     case soia::reflection::PrimitiveType::kTimestamp: {
-      out.out += "\"TIMESTAMP\"";
+      out.out += "\"timestamp\"";
       break;
     }
     case soia::reflection::PrimitiveType::kString: {
-      out.out += "\"STRING\"";
+      out.out += "\"string\"";
       break;
     }
     case soia::reflection::PrimitiveType::kBytes: {
-      out.out += "\"BYTES\"";
+      out.out += "\"bytes\"";
       break;
     }
   }
@@ -1782,15 +1782,15 @@ void ReflectionPrimitiveTypeAdapter::Parse(
     JsonTokenizer& tokenizer, soia::reflection::PrimitiveType& out) {
   static const auto* kMap =
       new ::absl::flat_hash_map<std::string, soia::reflection::PrimitiveType>({
-          {"BOOL", soia::reflection::PrimitiveType::kBool},
-          {"INT32", soia::reflection::PrimitiveType::kInt32},
-          {"INT64", soia::reflection::PrimitiveType::kInt64},
-          {"UINT64", soia::reflection::PrimitiveType::kUint64},
-          {"FLOAT32", soia::reflection::PrimitiveType::kFloat32},
-          {"FLOAT64", soia::reflection::PrimitiveType::kFloat64},
-          {"TIMESTAMP", soia::reflection::PrimitiveType::kTimestamp},
-          {"STRING", soia::reflection::PrimitiveType::kString},
-          {"BYTES", soia::reflection::PrimitiveType::kBytes},
+          {"bool", soia::reflection::PrimitiveType::kBool},
+          {"int32", soia::reflection::PrimitiveType::kInt32},
+          {"int64", soia::reflection::PrimitiveType::kInt64},
+          {"uint64", soia::reflection::PrimitiveType::kUint64},
+          {"float32", soia::reflection::PrimitiveType::kFloat32},
+          {"float64", soia::reflection::PrimitiveType::kFloat64},
+          {"timestamp", soia::reflection::PrimitiveType::kTimestamp},
+          {"string", soia::reflection::PrimitiveType::kString},
+          {"bytes", soia::reflection::PrimitiveType::kBytes},
       });
   if (tokenizer.state().token_type == JsonTokenType::kString) {
     const auto it = kMap->find(tokenizer.state().string_value);
@@ -1855,11 +1855,11 @@ void ReflectionRecordKindAdapter::Append(
     const soia::reflection::RecordKind& input, ReadableJson& out) {
   switch (input) {
     case soia::reflection::RecordKind::kStruct: {
-      out.out += "\"STRUCT\"";
+      out.out += "\"struct\"";
       break;
     }
     case soia::reflection::RecordKind::kEnum: {
-      out.out += "\"ENUM\"";
+      out.out += "\"enum\"";
       break;
     }
   }
@@ -1869,18 +1869,18 @@ void ReflectionRecordKindAdapter::Parse(JsonTokenizer& tokenizer,
                                         soia::reflection::RecordKind& out) {
   if (tokenizer.state().token_type == JsonTokenType::kString) {
     const std::string& string_value = tokenizer.state().string_value;
-    if (string_value == "STRUCT") {
+    if (string_value == "struct") {
       out = soia::reflection::RecordKind::kStruct;
       tokenizer.Next();
       return;
-    } else if (string_value == "ENUM") {
+    } else if (string_value == "enum") {
       out = soia::reflection::RecordKind::kEnum;
       tokenizer.Next();
       return;
     }
   }
   tokenizer.mutable_state().PushUnexpectedTokenError(
-      absl::StrCat("one of: [\"STRUCT\", \"ENUM\"]"));
+      absl::StrCat("one of: [\"struct\", \"enum\"]"));
 }
 
 void ReflectionFieldAdapter::Append(const soia::reflection::Field& input,
