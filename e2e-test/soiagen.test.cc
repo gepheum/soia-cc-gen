@@ -623,7 +623,7 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
               UnorderedElementsAre("first_name", "last_name"));
 }
 
-class FakeApiImplWithMeta {
+class FakeServiceImplWithMeta {
  public:
   using methods =
       std::tuple<soiagen_methods::MyProcedure, soiagen_methods::ListUsers>;
@@ -646,7 +646,7 @@ class FakeApiImplWithMeta {
 };
 
 TEST(SoialibTest, SoiaServiceWithMetadata) {
-  FakeApiImplWithMeta service_impl;
+  FakeServiceImplWithMeta service_impl;
   std::unique_ptr<soia::service::Client> client =
       soia::service::MakeClientForTesting(&service_impl);
 
@@ -656,8 +656,8 @@ TEST(SoialibTest, SoiaServiceWithMetadata) {
     soia::service::HttpHeaders response_headers;
     const absl::StatusOr<::soiagen_enums::JsonValue> result =
         ::soia::service::InvokeRemote(*client, soiagen_methods::MyProcedure(),
-                                  soiagen_structs::Point{.x = 1, .y = 2},
-                                  request_headers, &response_headers);
+                                      soiagen_structs::Point{.x = 1, .y = 2},
+                                      request_headers, &response_headers);
     EXPECT_THAT(result,
                 IsOkAndHolds(::soiagen_enums::JsonValue::wrap_number(1.0)));
     EXPECT_THAT(response_headers.map(),
