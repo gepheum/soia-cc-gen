@@ -319,10 +319,11 @@ EXPECT_THAT(john, (StructIs<User>{
 
 ```c++
 User::SubscriptionStatus john_status = soiagen::kFree;
-User::SubscriptionStatus jade_status =
-    soiagen::wrap_trial_start_time(absl::FromUnixMillis(1743682787000));
 
 EXPECT_THAT(john_status, testing::Eq(soiagen::kFree));
+
+User::SubscriptionStatus jade_status =
+    soiagen::wrap_trial_start_time(absl::FromUnixMillis(1743682787000));
 
 EXPECT_THAT(jade_status, IsTrialStartTime());
 EXPECT_THAT(jade_status, IsTrialStartTime(testing::Gt(absl::UnixEpoch())));
