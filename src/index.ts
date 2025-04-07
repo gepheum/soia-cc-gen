@@ -615,7 +615,7 @@ class CcLibFilesGenerator {
       source.internalMain.push(
         `soia::reflection::Type ${adapterName}::GetType(soia_type<type>) {`,
       );
-      const recordId = `${struct.record.name.text}:${struct.modulePath}`;
+      const recordId = `${struct.modulePath}:${struct.record.name.text}`;
       source.internalMain.push(
         `  return soia::reflection::RecordType({"${recordId}"});`,
       );
@@ -1532,7 +1532,7 @@ class CcLibFilesGenerator {
       source.internalMain.push(
         `soia::reflection::Type ${adapterName}::GetType(soia_type<type>) {`,
       );
-      const recordId = `${record.record.name.text}:${record.modulePath}`;
+      const recordId = `${record.modulePath}:${record.record.name.text}`;
       source.internalMain.push(
         `  return soia::reflection::RecordType({"${recordId}"});`,
       );
