@@ -615,7 +615,7 @@ class CcLibFilesGenerator {
       source.internalMain.push(
         `soia::reflection::Type ${adapterName}::GetType(soia_type<type>) {`,
       );
-      const recordId = `${struct.modulePath}:${struct.record.name.text}`;
+      const recordId = getRecordId(struct);
       source.internalMain.push(
         `  return soia::reflection::RecordType({"${recordId}"});`,
       );
@@ -627,7 +627,7 @@ class CcLibFilesGenerator {
       // RegisterRecords(soia_type<T>, RecordRegistry&)
       const { modulePath } = struct;
       const recordName = struct.record.name.text;
-      const recordId = `${modulePath}:${recordName}`;
+      const recordId = getRecordId(struct);
       source.internalMain.push(`void ${adapterName}::RegisterRecords(`);
       source.internalMain.push("    soia_type<type>,");
       source.internalMain.push(
@@ -1532,7 +1532,7 @@ class CcLibFilesGenerator {
       source.internalMain.push(
         `soia::reflection::Type ${adapterName}::GetType(soia_type<type>) {`,
       );
-      const recordId = `${record.modulePath}:${record.record.name.text}`;
+      const recordId = getRecordId(record);
       source.internalMain.push(
         `  return soia::reflection::RecordType({"${recordId}"});`,
       );
@@ -1543,8 +1543,7 @@ class CcLibFilesGenerator {
     {
       // RegisterRecords(soia_type<T>, RecordRegistry&)
       const { modulePath } = record;
-      const recordName = record.record.name.text;
-      const recordId = `${modulePath}:${recordName}`;
+      const recordId = getRecordId(record);
       source.internalMain.push(`void ${adapterName}::RegisterRecords(`);
       source.internalMain.push("    soia_type<type>,");
       source.internalMain.push(
@@ -1948,4 +1947,9 @@ function numberToCharLiterals(n: number): string {
 
 function bytesToIntLiterals(bytes: readonly number[]): string {
   return bytes.map((b) => `${b}`).join(", ");
+}
+
+function getRecordId(record: RecordLocation) {
+  const qualifiedName = record.recordAncestors.map((r) => r.name.text).join(".");
+  return `${record.modulePath}:${qualifiedName}`;
 }
