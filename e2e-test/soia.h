@@ -2426,16 +2426,19 @@ MethodDescriptor MakeMethodDescriptor(Method method) {
 std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 
 template <typename ApiImpl, typename RequestMeta, typename ResponseMeta>
-struct HandleRequestOp {
+class HandleRequestOp {
+ public:
   HandleRequestOp(ApiImpl* api_impl, absl::string_view request_data,
+                  soia::UnrecognizedFieldsPolicy unrecognized_fields,
                   const RequestMeta* request_meta, ResponseMeta* response_meta)
-      : api_impl(*api_impl),
-        request_data(request_data),
-        request_meta(*request_meta),
-        response_meta(*response_meta) {}
+      : api_impl_(*api_impl),
+        request_data_(request_data),
+        unrecognized_fields_(unrecognized_fields),
+        request_meta_(*request_meta),
+        response_meta_(*response_meta) {}
 
   soia::api::ResponseData Run() {
-    if (request_data == "list") {
+    if (request_data_ == "list") {
       std::vector<MethodDescriptor> method_descriptors;
       std::apply(
           [&](auto... method) {
@@ -2447,7 +2450,7 @@ struct HandleRequestOp {
           soia::api::ResponseType::kOkJson,
       };
     }
-    const auto parts = SplitRequestData(request_data);
+    const auto parts = SplitRequestData(request_data_);
     if (!parts.ok()) {
       return {
           absl::StrCat(kBadRequestPrefix, parts.status().message()),
@@ -2455,64 +2458,65 @@ struct HandleRequestOp {
       };
     }
     const absl::string_view method_name = std::get<0>(*parts);
-    method_number = std::get<1>(*parts);
-    format = std::get<2>(*parts);
-    request_data = std::get<3>(*parts);
+    method_number_ = std::get<1>(*parts);
+    format_ = std::get<2>(*parts);
+    request_data_ = std::get<3>(*parts);
     std::apply(
         [&](auto... method) {
           (static_cast<void>(MaybeInvokeMethod(method)), ...);
         },
         typename ApiImpl::methods());
-    if (response_data.has_value()) {
-      return std::move(*response_data);
+    if (response_data_.has_value()) {
+      return std::move(*response_data_);
     }
     return {absl::StrCat(kBadRequestPrefix, "Method not found: ", method_name,
-                         "; number: ", method_number),
+                         "; number: ", method_number_),
             soia::api::ResponseType::kBadRequest};
   }
 
  private:
-  ApiImpl& api_impl = nullptr;
-  absl::string_view request_data;
-  const RequestMeta& request_meta;
-  ResponseMeta& response_meta;
-  int method_number = 0;
-  absl::string_view format;
+  ApiImpl& api_impl_;
+  absl::string_view request_data_;
+  const soia::UnrecognizedFieldsPolicy unrecognized_fields_;
+  const RequestMeta& request_meta_;
+  ResponseMeta& response_meta_;
+  int method_number_ = 0;
+  absl::string_view format_;
 
-  absl::optional<soia::api::ResponseData> response_data;
+  absl::optional<soia::api::ResponseData> response_data_;
 
   template <typename Method>
   void MaybeInvokeMethod(Method method) {
     using MethodType = decltype(method);
     using RequestType = typename MethodType::request_type;
     using ResponseType = typename MethodType::response_type;
-    if (MethodType::kNumber != method_number) return;
-    response_data.emplace();
+    if (MethodType::kNumber != method_number_) return;
+    response_data_.emplace();
     absl::StatusOr<RequestType> request =
-        soia::Parse<RequestType>(request_data);
+        soia::Parse<RequestType>(request_data_, unrecognized_fields_);
     if (!request.ok()) {
-      response_data->response_data =
+      response_data_->response_data =
           absl::StrCat(kBadRequestPrefix, request.status().message());
-      response_data->response_type = soia::api::ResponseType::kBadRequest;
+      response_data_->response_type = soia::api::ResponseType::kBadRequest;
       return;
     }
     absl::StatusOr<ResponseType> output =
-        api_impl(method, std::move(*request), request_meta, response_meta);
+        api_impl_(method, std::move(*request), request_meta_, response_meta_);
     if (!output.ok()) {
-      response_data->response_data =
+      response_data_->response_data =
           absl::StrCat(kServerErrorPrefix, output.status().message());
-      response_data->response_type = soia::api::ResponseType::kServerError;
+      response_data_->response_type = soia::api::ResponseType::kServerError;
       return;
     }
-    if (format == "readable") {
-      response_data->response_data = soia::ToReadableJson(*output);
-      response_data->response_type = soia::api::ResponseType::kOkJson;
-    } else if (format == "binary") {
-      response_data->response_data = soia::ToBytes(*output).as_string();
-      response_data->response_type = soia::api::ResponseType::kOkBytes;
+    if (format_ == "readable") {
+      response_data_->response_data = soia::ToReadableJson(*output);
+      response_data_->response_type = soia::api::ResponseType::kOkJson;
+    } else if (format_ == "binary") {
+      response_data_->response_data = soia::ToBytes(*output).as_string();
+      response_data_->response_type = soia::api::ResponseType::kOkBytes;
     } else {
-      response_data->response_data = soia::ToDenseJson(*output);
-      response_data->response_type = soia::api::ResponseType::kOkJson;
+      response_data_->response_data = soia::ToDenseJson(*output);
+      response_data_->response_type = soia::api::ResponseType::kOkJson;
     }
   }
 };
@@ -2598,13 +2602,19 @@ namespace api {
 // your server library, you don't need to call HandleRequest, you can simply
 // call InstallApiOnHttplibServer. If you are using another server library,
 // call HandleRequest in the logic for installing a soia API on your server.
+//
+// Pass in UnrecognizedFieldsPolicy::kKeep if the request cannot come from a
+// malicious user.
 template <typename ApiImpl>
 ResponseData HandleRequest(ApiImpl& api_impl, absl::string_view request_data,
                            const HttpHeaders& request_headers,
-                           HttpHeaders& response_headers) {
+                           HttpHeaders& response_headers,
+                           UnrecognizedFieldsPolicy unrecognized_fields =
+                               UnrecognizedFieldsPolicy::kDrop) {
   soia_internal::assert_unique_method_numbers<typename ApiImpl::methods>();
   return soia_internal::HandleRequestOp(&api_impl, request_data,
-                                        &request_headers, &response_headers)
+                                        unrecognized_fields, &request_headers,
+                                        &response_headers)
       .Run();
 }
 
@@ -2614,13 +2624,18 @@ ResponseData HandleRequest(ApiImpl& api_impl, absl::string_view request_data,
 //
 // ApiImpl must satisfy the requirements outlined in the documentation for
 // HandleRequest.
+//
+// Pass in UnrecognizedFieldsPolicy::kKeep if the requests cannot come from a
+// malicious user.
 template <typename HttplibServer, typename ApiImpl>
 void InstallApiOnHttplibServer(HttplibServer& server,
                                absl::string_view query_path,
-                               std::shared_ptr<ApiImpl> api_impl) {
+                               std::shared_ptr<ApiImpl> api_impl,
+                               UnrecognizedFieldsPolicy unrecognized_fields =
+                                   UnrecognizedFieldsPolicy::kDrop) {
   ABSL_CHECK_NE(api_impl, nullptr);
   const typename HttplibServer::Handler handler =  //
-      [api_impl](const auto& req, auto& resp) {
+      [api_impl, unrecognized_fields](const auto& req, auto& resp) {
         absl::string_view request_data;
         std::string request_data_str;
         if (req.has_param("m")) {
@@ -2636,8 +2651,9 @@ void InstallApiOnHttplibServer(HttplibServer& server,
         const HttpHeaders request_headers =
             soia_internal::HttplibToSoiaHeaders(req.headers);
         HttpHeaders response_headers;
-        ResponseData response_data = HandleRequest(
-            *api_impl, request_data, request_headers, response_headers);
+        ResponseData response_data =
+            HandleRequest(*api_impl, request_data, request_headers,
+                          response_headers, unrecognized_fields);
         soia_internal::SoiaToHttplibHeaders(response_headers, resp.headers);
 
         const std::string& content_type =
@@ -2693,7 +2709,8 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
       !response_status.ok()) {
     return response_status;
   }
-  return Parse<typename Method::response_type>(*response_data);
+  return Parse<typename Method::response_type>(*response_data,
+                                               UnrecognizedFieldsPolicy::kKeep);
 }
 
 // Returns an API client for sending RPCs to a soia API via the given
