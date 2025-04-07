@@ -234,9 +234,9 @@ assert(tarzan.name == "Tarzan");
 
 #### Starting a soia service on an HTTP server
 
-Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/service_server.cc).
+Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/service_start.cc).
 
-#### Sending an RPC to a soia service
+#### Sending RPCs to a soia service
 
 Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/service_client.cc).
 
