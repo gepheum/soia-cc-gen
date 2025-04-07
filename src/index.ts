@@ -1950,6 +1950,8 @@ function bytesToIntLiterals(bytes: readonly number[]): string {
 }
 
 function getRecordId(record: RecordLocation) {
-  const qualifiedName = record.recordAncestors.map((r) => r.name.text).join(".");
+  const qualifiedName = record.recordAncestors
+    .map((r) => r.name.text)
+    .join(".");
   return `${record.modulePath}:${qualifiedName}`;
 }
