@@ -49,7 +49,7 @@ absl::StatusOr<TypeDescriptor> TypeDescriptor::FromJson(
 
 }  // namespace reflection
 
-namespace api {
+namespace service {
 
 void HttpHeaders::Insert(absl::string_view name, absl::string_view value) {
   map_[absl::AsciiStrToLower(name)].emplace_back(value);
@@ -74,7 +74,7 @@ absl::string_view HttpHeaders::GetLast(absl::string_view name) const {
   }
 }
 
-}  // namespace api
+}  // namespace service
 }  // namespace soia
 
 namespace soia_internal {
@@ -2549,15 +2549,16 @@ absl::Status CheckResponseData(absl::string_view response_data) {
   }
 }
 
-soia::api::ResponseType GetApiResponseType(absl::string_view response_data) {
+soia::service::ResponseType GetServiceResponseType(
+    absl::string_view response_data) {
   if (absl::StartsWith(response_data, "soia")) {
-    return soia::api::ResponseType::kOkBytes;
+    return soia::service::ResponseType::kOkBytes;
   } else if (absl::StartsWith(response_data, kBadRequestPrefix)) {
-    return soia::api::ResponseType::kBadRequest;
+    return soia::service::ResponseType::kBadRequest;
   } else if (absl::StartsWith(response_data, kServerErrorPrefix)) {
-    return soia::api::ResponseType::kServerError;
+    return soia::service::ResponseType::kServerError;
   } else {
-    return soia::api::ResponseType::kOkJson;
+    return soia::service::ResponseType::kOkJson;
   }
 }
 

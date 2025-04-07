@@ -63,9 +63,9 @@ cc_library(
 )
 
 cc_test(
-    name = "soia_api.test",
+    name = "soia_service.test",
     size = "small",
-    srcs = ["soia_api.test.cc"],
+    srcs = ["soia_service.test.cc"],
     deps = [
         ":soia",
         ":soia.testing",

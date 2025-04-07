@@ -630,8 +630,8 @@ class FakeApiImplWithMeta {
 
   ::soiagen_enums::JsonValue operator()(
       soiagen_methods::MyProcedure, ::soiagen_structs::Point request,
-      const ::soia::api::HttpHeaders& request_headers,
-      soia::api::HttpHeaders& response_headers) {
+      const ::soia::service::HttpHeaders& request_headers,
+      soia::service::HttpHeaders& response_headers) {
     response_headers = request_headers;
     return ::soiagen_enums::JsonValue::wrap_number(request.x);
   }
@@ -639,23 +639,23 @@ class FakeApiImplWithMeta {
   absl::StatusOr<soiagen_methods::ListUsersResponse> operator()(
       soiagen_methods::ListUsers,
       const ::soiagen_methods::ListUsersRequest& request,
-      const ::soia::api::HttpHeaders& request_headers,
-      soia::api::HttpHeaders& response_headers) {
+      const ::soia::service::HttpHeaders& request_headers,
+      soia::service::HttpHeaders& response_headers) {
     return absl::UnknownError("unsupported");
   }
 };
 
-TEST(SoialibTest, SoiaApiWithMetadata) {
-  FakeApiImplWithMeta api_impl;
-  std::unique_ptr<soia::api::ApiClient> api_client =
-      soia::api::MakeApiClientForTesting(&api_impl);
+TEST(SoialibTest, SoiaServiceWithMetadata) {
+  FakeApiImplWithMeta service_impl;
+  std::unique_ptr<soia::service::Client> client =
+      soia::service::MakeClientForTesting(&service_impl);
 
   {
-    soia::api::HttpHeaders request_headers;
+    soia::service::HttpHeaders request_headers;
     request_headers.Insert("origin", "foo");
-    soia::api::HttpHeaders response_headers;
+    soia::service::HttpHeaders response_headers;
     const absl::StatusOr<::soiagen_enums::JsonValue> result =
-        ::soia::api::InvokeRemote(*api_client, soiagen_methods::MyProcedure(),
+        ::soia::service::InvokeRemote(*client, soiagen_methods::MyProcedure(),
                                   soiagen_structs::Point{.x = 1, .y = 2},
                                   request_headers, &response_headers);
     EXPECT_THAT(result,

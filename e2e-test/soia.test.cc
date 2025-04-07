@@ -1217,7 +1217,7 @@ TEST(SoialibTest, ParseBytesReturnsError) {
 }
 
 TEST(SoialibTest, HttpHeaders) {
-  soia::api::HttpHeaders headers;
+  soia::service::HttpHeaders headers;
   headers.Insert("accept", "A");
   headers.Insert("Accept", "B");
   headers.Insert("origin", "C");

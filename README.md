@@ -230,15 +230,15 @@ const User& tarzan = soiagen_user::k_tarzan();
 assert(tarzan.name == "Tarzan");
 ```
 
-### Soia APIs
+### Soia services
 
-#### Starting a soia API on an HTTP server
+#### Starting a soia service on an HTTP server
 
-Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/api_server.cc).
+Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/service_server.cc).
 
-#### Calling a soia API on a remote server
+#### Sending an RPC to a soia service
 
-Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/api_client.cc).
+Full example [here](https://github.com/gepheum/soia-cc-example/blob/main/service_client.cc).
 
 ### Dynamic reflection
 

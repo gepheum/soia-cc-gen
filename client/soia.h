@@ -857,7 +857,7 @@ struct enum_value_field {
 
 }  // namespace reflection
 
-namespace api {
+namespace service {
 
 enum class ResponseType {
   // The method invocation succeeded and the response data is in JSON format.
@@ -912,16 +912,17 @@ class HttpHeaders {
   absl::flat_hash_map<std::string, std::vector<std::string>> map_;
 };
 
-class ApiClient {
+// Sends RPCs to a soia service.
+class Client {
  public:
-  virtual ~ApiClient() = default;
+  virtual ~Client() = default;
 
   virtual absl::StatusOr<std::string> operator()(
       absl::string_view request_data, const HttpHeaders& request_headers,
       HttpHeaders& response_headers) const = 0;
 };
 
-}  // namespace api
+}  // namespace service
 }  // namespace soia
 
 namespace soia_internal {
@@ -2205,7 +2206,7 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
                              std::shared_ptr<UnrecognizedFieldsData>& out);
 
 template <typename HttplibHeaders>
-void SoiaToHttplibHeaders(const soia::api::HttpHeaders& input,
+void SoiaToHttplibHeaders(const soia::service::HttpHeaders& input,
                           HttplibHeaders& out) {
   for (const auto& [name, values] : input.map()) {
     for (const absl::string_view value : values) {
@@ -2215,8 +2216,8 @@ void SoiaToHttplibHeaders(const soia::api::HttpHeaders& input,
 }
 
 template <typename HttplibHeaders>
-soia::api::HttpHeaders HttplibToSoiaHeaders(const HttplibHeaders& input) {
-  soia::api::HttpHeaders result;
+soia::service::HttpHeaders HttplibToSoiaHeaders(const HttplibHeaders& input) {
+  soia::service::HttpHeaders result;
   for (const auto& [name, value] : input) {
     result.Insert(name, value);
   }
@@ -2396,7 +2397,8 @@ namespace soia_internal {
 constexpr absl::string_view kBadRequestPrefix = "bad-request:";
 constexpr absl::string_view kServerErrorPrefix = "server-error:";
 
-soia::api::ResponseType GetApiResponseType(absl::string_view response_data);
+soia::service::ResponseType GetServiceResponseType(
+    absl::string_view response_data);
 
 absl::StatusOr<
     std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
@@ -2425,36 +2427,36 @@ MethodDescriptor MakeMethodDescriptor(Method method) {
 
 std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 
-template <typename ApiImpl, typename RequestMeta, typename ResponseMeta>
+template <typename ServiceImpl, typename RequestMeta, typename ResponseMeta>
 class HandleRequestOp {
  public:
-  HandleRequestOp(ApiImpl* api_impl, absl::string_view request_data,
+  HandleRequestOp(ServiceImpl* service_impl, absl::string_view request_data,
                   soia::UnrecognizedFieldsPolicy unrecognized_fields,
                   const RequestMeta* request_meta, ResponseMeta* response_meta)
-      : api_impl_(*api_impl),
+      : service_impl_(*service_impl),
         request_data_(request_data),
         unrecognized_fields_(unrecognized_fields),
         request_meta_(*request_meta),
         response_meta_(*response_meta) {}
 
-  soia::api::ResponseData Run() {
+  soia::service::ResponseData Run() {
     if (request_data_ == "list") {
       std::vector<MethodDescriptor> method_descriptors;
       std::apply(
           [&](auto... method) {
             (method_descriptors.push_back(MakeMethodDescriptor(method)), ...);
           },
-          typename ApiImpl::methods());
+          typename ServiceImpl::methods());
       return {
           MethodListToJson(method_descriptors),
-          soia::api::ResponseType::kOkJson,
+          soia::service::ResponseType::kOkJson,
       };
     }
     const auto parts = SplitRequestData(request_data_);
     if (!parts.ok()) {
       return {
           absl::StrCat(kBadRequestPrefix, parts.status().message()),
-          soia::api::ResponseType::kBadRequest,
+          soia::service::ResponseType::kBadRequest,
       };
     }
     const absl::string_view method_name = std::get<0>(*parts);
@@ -2465,17 +2467,17 @@ class HandleRequestOp {
         [&](auto... method) {
           (static_cast<void>(MaybeInvokeMethod(method)), ...);
         },
-        typename ApiImpl::methods());
+        typename ServiceImpl::methods());
     if (response_data_.has_value()) {
       return std::move(*response_data_);
     }
     return {absl::StrCat(kBadRequestPrefix, "Method not found: ", method_name,
                          "; number: ", method_number_),
-            soia::api::ResponseType::kBadRequest};
+            soia::service::ResponseType::kBadRequest};
   }
 
  private:
-  ApiImpl& api_impl_;
+  ServiceImpl& service_impl_;
   absl::string_view request_data_;
   const soia::UnrecognizedFieldsPolicy unrecognized_fields_;
   const RequestMeta& request_meta_;
@@ -2483,7 +2485,7 @@ class HandleRequestOp {
   int method_number_ = 0;
   absl::string_view format_;
 
-  absl::optional<soia::api::ResponseData> response_data_;
+  absl::optional<soia::service::ResponseData> response_data_;
 
   template <typename Method>
   void MaybeInvokeMethod(Method method) {
@@ -2497,40 +2499,40 @@ class HandleRequestOp {
     if (!request.ok()) {
       response_data_->response_data =
           absl::StrCat(kBadRequestPrefix, request.status().message());
-      response_data_->response_type = soia::api::ResponseType::kBadRequest;
+      response_data_->response_type = soia::service::ResponseType::kBadRequest;
       return;
     }
-    absl::StatusOr<ResponseType> output =
-        api_impl_(method, std::move(*request), request_meta_, response_meta_);
+    absl::StatusOr<ResponseType> output = service_impl_(
+        method, std::move(*request), request_meta_, response_meta_);
     if (!output.ok()) {
       response_data_->response_data =
           absl::StrCat(kServerErrorPrefix, output.status().message());
-      response_data_->response_type = soia::api::ResponseType::kServerError;
+      response_data_->response_type = soia::service::ResponseType::kServerError;
       return;
     }
     if (format_ == "readable") {
       response_data_->response_data = soia::ToReadableJson(*output);
-      response_data_->response_type = soia::api::ResponseType::kOkJson;
+      response_data_->response_type = soia::service::ResponseType::kOkJson;
     } else if (format_ == "binary") {
       response_data_->response_data = soia::ToBytes(*output).as_string();
-      response_data_->response_type = soia::api::ResponseType::kOkBytes;
+      response_data_->response_type = soia::service::ResponseType::kOkBytes;
     } else {
       response_data_->response_data = soia::ToDenseJson(*output);
-      response_data_->response_type = soia::api::ResponseType::kOkJson;
+      response_data_->response_type = soia::service::ResponseType::kOkJson;
     }
   }
 };
 
 template <typename HttplibClientPtr>
-class HttplibApiClient : public soia::api::ApiClient {
+class HttplibClient : public soia::service::Client {
  public:
-  HttplibApiClient(HttplibClientPtr client, std::string query_path)
+  HttplibClient(HttplibClientPtr client, std::string query_path)
       : client_(std::move(ABSL_DIE_IF_NULL(client))), query_path_(query_path) {}
 
   absl::StatusOr<std::string> operator()(
       absl::string_view request_data,
-      const soia::api::HttpHeaders& request_headers,
-      soia::api::HttpHeaders& response_headers) const {
+      const soia::service::HttpHeaders& request_headers,
+      soia::service::HttpHeaders& response_headers) const {
     const std::string& content_type =
         soia_internal::GetHttpContentType(request_data);
     auto headers =
@@ -2558,12 +2560,12 @@ class HttplibApiClient : public soia::api::ApiClient {
 }  // namespace soia_internal
 
 namespace soia {
-namespace api {
+namespace service {
 
 // On the server side, parses the content of a user request and invokes the
-// appropriate method on the given API implementation.
+// appropriate method on the given service implementation.
 //
-// ApiImpl must satisfy the following requirements:
+// ServiceImpl must satisfy the following requirements:
 //   1. It must have a public `methods` type alias which resolves to a tuple of
 // //     method types.
 //   2. For each method, it must have a member function with this signature:
@@ -2575,7 +2577,7 @@ namespace api {
 //
 // For example:
 //
-//   class MyApiImpl {
+//   class MyServiceImpl {
 //    public:
 //     using methods = std::tuple<
 //          soiagen_methods::ListUsers,
@@ -2600,42 +2602,44 @@ namespace api {
 //
 // If you are using cpp-httplib (https://github.com/yhirose/cpp-httplib) as
 // your server library, you don't need to call HandleRequest, you can simply
-// call InstallApiOnHttplibServer. If you are using another server library,
-// call HandleRequest in the logic for installing a soia API on your server.
+// call InstallServiceOnHttplibServer. If you are using another server library,
+// call HandleRequest in the logic for installing a soia service on your
+// server.
 //
 // Pass in UnrecognizedFieldsPolicy::kKeep if the request cannot come from a
 // malicious user.
-template <typename ApiImpl>
-ResponseData HandleRequest(ApiImpl& api_impl, absl::string_view request_data,
+template <typename ServiceImpl>
+ResponseData HandleRequest(ServiceImpl& service_impl,
+                           absl::string_view request_data,
                            const HttpHeaders& request_headers,
                            HttpHeaders& response_headers,
                            UnrecognizedFieldsPolicy unrecognized_fields =
                                UnrecognizedFieldsPolicy::kDrop) {
-  soia_internal::assert_unique_method_numbers<typename ApiImpl::methods>();
-  return soia_internal::HandleRequestOp(&api_impl, request_data,
+  soia_internal::assert_unique_method_numbers<typename ServiceImpl::methods>();
+  return soia_internal::HandleRequestOp(&service_impl, request_data,
                                         unrecognized_fields, &request_headers,
                                         &response_headers)
       .Run();
 }
 
-// Installs a soia API on the given httplib::Server as the given query path.
-// The httplib::Server type is referred to as a template parameter so as not to
-// make cpp-httplib a dependency of soia.
+// Installs a soia service on the given httplib::Server as the given query
+// path. The httplib::Server type is referred to as a template parameter so as
+// not to make cpp-httplib a dependency of soia.
 //
-// ApiImpl must satisfy the requirements outlined in the documentation for
+// ServiceImpl must satisfy the requirements outlined in the documentation for
 // HandleRequest.
 //
 // Pass in UnrecognizedFieldsPolicy::kKeep if the requests cannot come from a
 // malicious user.
-template <typename HttplibServer, typename ApiImpl>
-void InstallApiOnHttplibServer(HttplibServer& server,
-                               absl::string_view query_path,
-                               std::shared_ptr<ApiImpl> api_impl,
-                               UnrecognizedFieldsPolicy unrecognized_fields =
-                                   UnrecognizedFieldsPolicy::kDrop) {
-  ABSL_CHECK_NE(api_impl, nullptr);
+template <typename HttplibServer, typename ServiceImpl>
+void InstallServiceOnHttplibServer(
+    HttplibServer& server, absl::string_view query_path,
+    std::shared_ptr<ServiceImpl> service_impl,
+    UnrecognizedFieldsPolicy unrecognized_fields =
+        UnrecognizedFieldsPolicy::kDrop) {
+  ABSL_CHECK_NE(service_impl, nullptr);
   const typename HttplibServer::Handler handler =  //
-      [api_impl, unrecognized_fields](const auto& req, auto& resp) {
+      [service_impl, unrecognized_fields](const auto& req, auto& resp) {
         absl::string_view request_data;
         std::string request_data_str;
         if (req.has_param("m")) {
@@ -2652,7 +2656,7 @@ void InstallApiOnHttplibServer(HttplibServer& server,
             soia_internal::HttplibToSoiaHeaders(req.headers);
         HttpHeaders response_headers;
         ResponseData response_data =
-            HandleRequest(*api_impl, request_data, request_headers,
+            HandleRequest(*service_impl, request_data, request_headers,
                           response_headers, unrecognized_fields);
         soia_internal::SoiaToHttplibHeaders(response_headers, resp.headers);
 
@@ -2661,7 +2665,7 @@ void InstallApiOnHttplibServer(HttplibServer& server,
         resp.set_content(std::move(response_data.response_data), content_type);
 
         if (resp.status == 0) {
-          // If the status hasn't been set by the API implementation, set it
+          // If the status hasn't been set by the service implementation, set it
           // based on the response type.
           switch (response_data.response_type) {
             case ResponseType::kOkJson:
@@ -2689,7 +2693,7 @@ void InstallApiOnHttplibServer(HttplibServer& server,
 // returned an error.
 template <typename Method>
 absl::StatusOr<typename Method::response_type> InvokeRemote(
-    const ApiClient& api_client, Method method,
+    const Client& client, Method method,
     const typename Method::request_type& request,
     const HttpHeaders& request_headers = {},
     HttpHeaders* response_headers = nullptr) {
@@ -2697,7 +2701,7 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
       Method::kMethodName, ":", Method::kNumber, "::", ToDenseJson(request));
   HttpHeaders response_headers_tmp;
   absl::StatusOr<std::string> response_data =
-      api_client(request_data, request_headers, response_headers_tmp);
+      client(request_data, request_headers, response_headers_tmp);
   if (response_headers != nullptr) {
     *response_headers = std::move(response_headers_tmp);
   }
@@ -2713,36 +2717,36 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
                                                UnrecognizedFieldsPolicy::kKeep);
 }
 
-// Returns an API client for sending RPCs to a soia API via the given
+// Returns a client for sending RPCs to a soia service via the given
 // httplib::Client.
 // The httplib::Client type is referred to as a template parameter so as not to
 // make cpp-httplib a dependency of soia.
 //
-// If you are not using cpp-httplib, you can write your own ApiClient
+// If you are not using cpp-httplib, you can write your own Client
 // implementation.
 template <typename HttplibClient>
-std::unique_ptr<ApiClient> MakeHttplibApiClient(
-    absl::Nonnull<HttplibClient*> client, absl::string_view query_path) {
-  return std::make_unique<soia_internal::HttplibApiClient<HttplibClient*>>(
+std::unique_ptr<Client> MakeHttplibClient(absl::Nonnull<HttplibClient*> client,
+                                          absl::string_view query_path) {
+  return std::make_unique<soia_internal::HttplibClient<HttplibClient*>>(
       client, std::string(query_path));
 };
 
-// Returns an API client for sending RPCs to a soia API via the given
+// Returns a client for sending RPCs to a soia service via the given
 // httplib::Client.
 // The httplib::Client type is referred to as a template parameter so as not to
 // make cpp-httplib a dependency of soia.
 //
-// If you are not using cpp-httplib, you can write your own ApiClient
+// If you are not using cpp-httplib, you can write your own Client
 // implementation.
 template <typename HttplibClient>
-std::unique_ptr<ApiClient> MakeHttplibApiClient(
-    std::unique_ptr<HttplibClient> client, absl::string_view query_path) {
+std::unique_ptr<Client> MakeHttplibClient(std::unique_ptr<HttplibClient> client,
+                                          absl::string_view query_path) {
   return std::make_unique<
-      soia_internal::HttplibApiClient<std::unique_ptr<HttplibClient>>>(
+      soia_internal::HttplibClient<std::unique_ptr<HttplibClient>>>(
       std::move(client), std::string(query_path));
 };
 
-}  // namespace api
+}  // namespace service
 }  // namespace soia
 
 #endif

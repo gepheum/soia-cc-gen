@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 
+#include <memory>
 #include <string>
 #include <thread>
 #include <tuple>
@@ -18,10 +19,10 @@
 
 namespace {
 using ::absl_testing::IsOkAndHolds;
-using ::soia::api::HttpHeaders;
-using ::soia::api::InstallApiOnHttplibServer;
-using ::soia::api::InvokeRemote;
-using ::soia::api::MakeHttplibApiClient;
+using ::soia::service::HttpHeaders;
+using ::soia::service::InstallServiceOnHttplibServer;
+using ::soia::service::InvokeRemote;
+using ::soia::service::MakeHttplibClient;
 using ::soiagen_methods::ListUsers;
 using ::soiagen_methods::ListUsersRequest;
 using ::soiagen_methods::ListUsersResponse;
@@ -31,14 +32,14 @@ using ::testing::ElementsAre;
 using ::testing::Pair;
 using ::testing::soiagen::StructIs;
 
-class ApiImpl {
+class ServiceImpl {
  public:
   using methods = std::tuple<soiagen_methods::ListUsers>;
 
   absl::StatusOr<ListUsersResponse> operator()(
       ListUsers, ListUsersRequest request,
-      const soia::api::HttpHeaders& request_headers,
-      soia::api::HttpHeaders& response_headers) const {
+      const soia::service::HttpHeaders& request_headers,
+      soia::service::HttpHeaders& response_headers) const {
     if (request.country.empty()) {
       response_headers.Insert("X-foo", "bar");
       return absl::UnknownError("no country specified");
@@ -62,15 +63,15 @@ class ApiImpl {
   absl::flat_hash_map<std::string, std::vector<User>> country_to_users;
 };
 
-TEST(SoiaApiTest, TestServerAndClientWithMetadata) {
+TEST(SoiaServiceTest, TestServerAndClientWithMetadata) {
   constexpr int kPort = 8787;
 
   httplib::Server server;
 
-  auto api_impl = std::make_shared<ApiImpl>();
-  InstallApiOnHttplibServer(server, "/myapi", api_impl);
+  auto service_impl = std::make_shared<ServiceImpl>();
+  InstallServiceOnHttplibServer(server, "/myapi", service_impl);
 
-  api_impl->AddUser({
+  service_impl->AddUser({
       .id = 102,
       .first_name = "Jane",
       .last_name = "Doe",
@@ -81,16 +82,15 @@ TEST(SoiaApiTest, TestServerAndClientWithMetadata) {
 
   server.wait_until_ready();
 
-  httplib::Client client("localhost", kPort);
-  std::unique_ptr<soia::api::ApiClient> api_client =
-      MakeHttplibApiClient(&client, "/myapi");
+  std::unique_ptr<soia::service::Client> soia_client = MakeHttplibClient(
+      std::make_unique<httplib::Client>("localhost", kPort), "/myapi");
 
   HttpHeaders request_headers;
   request_headers.Insert("foo", "bar");
   HttpHeaders response_headers;
   response_headers.Insert("zoo", "rab");
   absl::StatusOr<ListUsersResponse> response =
-      InvokeRemote(*api_client, ListUsers(), ListUsersRequest{.country = "AU"},
+      InvokeRemote(*soia_client, ListUsers(), ListUsersRequest{.country = "AU"},
                    request_headers, &response_headers);
 
   EXPECT_THAT(response, IsOkAndHolds(StructIs<ListUsersResponse>{
@@ -101,7 +101,7 @@ TEST(SoiaApiTest, TestServerAndClientWithMetadata) {
   EXPECT_THAT(response_headers.map(),
               Contains(Pair("foo", ElementsAre("bar"))));
 
-  EXPECT_THAT(InvokeRemote(*api_client, ListUsers(), ListUsersRequest{},
+  EXPECT_THAT(InvokeRemote(*soia_client, ListUsers(), ListUsersRequest{},
                            request_headers, &response_headers)
                   .status(),
               absl::UnknownError("Server error: no country specified"));
@@ -110,7 +110,7 @@ TEST(SoiaApiTest, TestServerAndClientWithMetadata) {
               Contains(Pair("x-foo", ElementsAre("bar"))));
 
   EXPECT_THAT(
-      InvokeRemote(*api_client, soiagen_methods::True(), "", {}).status(),
+      InvokeRemote(*soia_client, soiagen_methods::True(), "", {}).status(),
       absl::UnknownError(
           "Bad request: Method not found: True; number: 2615726"));
 
