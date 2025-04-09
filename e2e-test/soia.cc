@@ -2522,18 +2522,17 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
   }
 }
 
-const std::string& GetHttpContentType(absl::string_view content) {
-  if (absl::StartsWith(content, "soia")) {
-    static const auto* kContentType =
-        new std::string("application/octet-stream");
-    return *kContentType;
-  } else if (absl::StartsWith(content, kBadRequestPrefix) ||
-             absl::StartsWith(content, kServerErrorPrefix)) {
-    static const auto* kContentType = new std::string("text/plain");
-    return *kContentType;
-  } else {
-    static const auto* kContentType = new std::string("application/json");
-    return *kContentType;
+const std::string& GetHttpContentType(soia::service::ResponseType type) {
+  switch (type) {
+    case soia::service::ResponseType::kOkJson: {
+      static const auto* kContentType = new std::string("application/json");
+      return *kContentType;
+    }
+    case soia::service::ResponseType::kBadRequest:
+    case soia::service::ResponseType::kServerError: {
+      static const auto* kContentType = new std::string("text/plain");
+      return *kContentType;
+    }
   }
 }
 
@@ -2546,19 +2545,6 @@ absl::Status CheckResponseData(absl::string_view response_data) {
         "Server error: ", response_data.substr(kServerErrorPrefix.length())));
   } else {
     return absl::OkStatus();
-  }
-}
-
-soia::service::ResponseType GetServiceResponseType(
-    absl::string_view response_data) {
-  if (absl::StartsWith(response_data, "soia")) {
-    return soia::service::ResponseType::kOkBytes;
-  } else if (absl::StartsWith(response_data, kBadRequestPrefix)) {
-    return soia::service::ResponseType::kBadRequest;
-  } else if (absl::StartsWith(response_data, kServerErrorPrefix)) {
-    return soia::service::ResponseType::kServerError;
-  } else {
-    return soia::service::ResponseType::kOkJson;
   }
 }
 

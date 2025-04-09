@@ -862,8 +862,6 @@ namespace service {
 enum class ResponseType {
   // The method invocation succeeded and the response data is in JSON format.
   kOkJson,
-  // The method invocation succeeded and the response data is in binary format.
-  kOkBytes,
   // The method invocation failed because the request was malformed.
   // The response data is "bad-request:" followed by an error message.
   kBadRequest,
@@ -2228,7 +2226,7 @@ constexpr int kOk_200 = 200;
 constexpr int kBadRequest_400 = 400;
 constexpr int kInternalServerError_500 = 500;
 
-const std::string& GetHttpContentType(absl::string_view content);
+const std::string& GetHttpContentType(soia::service::ResponseType type);
 
 // Returns an error if response_data indicates a bad request or a server error.
 absl::Status CheckResponseData(absl::string_view response_data);
@@ -2397,9 +2395,6 @@ namespace soia_internal {
 constexpr absl::string_view kBadRequestPrefix = "bad-request:";
 constexpr absl::string_view kServerErrorPrefix = "server-error:";
 
-soia::service::ResponseType GetServiceResponseType(
-    absl::string_view response_data);
-
 absl::StatusOr<
     std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
 SplitRequestData(absl::string_view request_data);
@@ -2513,9 +2508,6 @@ class HandleRequestOp {
     if (format_ == "readable") {
       response_data_->response_data = soia::ToReadableJson(*output);
       response_data_->response_type = soia::service::ResponseType::kOkJson;
-    } else if (format_ == "binary") {
-      response_data_->response_data = soia::ToBytes(*output).as_string();
-      response_data_->response_type = soia::service::ResponseType::kOkBytes;
     } else {
       response_data_->response_data = soia::ToDenseJson(*output);
       response_data_->response_type = soia::service::ResponseType::kOkJson;
@@ -2533,13 +2525,11 @@ class HttplibClient : public soia::service::Client {
       absl::string_view request_data,
       const soia::service::HttpHeaders& request_headers,
       soia::service::HttpHeaders& response_headers) const {
-    const std::string& content_type =
-        soia_internal::GetHttpContentType(request_data);
     auto headers =
         decltype(std::declval<HttplibClientPtr>()->Get("")->headers)();
     SoiaToHttplibHeaders(request_headers, headers);
     auto result = client_->Post(query_path_, headers, request_data.data(),
-                                request_data.length(), content_type);
+                                request_data.length(), "text/plain");
     if (result) {
       response_headers = HttplibToSoiaHeaders(result->headers);
       return std::move(result->body);
@@ -2661,15 +2651,14 @@ void InstallServiceOnHttplibServer(
         soia_internal::SoiaToHttplibHeaders(response_headers, resp.headers);
 
         const std::string& content_type =
-            soia_internal::GetHttpContentType(response_data.response_data);
+            soia_internal::GetHttpContentType(response_data.response_type);
         resp.set_content(std::move(response_data.response_data), content_type);
 
         if (resp.status == 0) {
           // If the status hasn't been set by the service implementation, set it
           // based on the response type.
           switch (response_data.response_type) {
-            case ResponseType::kOkJson:
-            case ResponseType::kOkBytes: {
+            case ResponseType::kOkJson: {
               resp.status = soia_internal::kOk_200;
               break;
             }
