@@ -101,18 +101,20 @@ TEST(SoiaServiceTest, TestServerAndClientWithMetadata) {
   EXPECT_THAT(response_headers.map(),
               Contains(Pair("foo", ElementsAre("bar"))));
 
-  EXPECT_THAT(InvokeRemote(*soia_client, ListUsers(), ListUsersRequest{},
-                           request_headers, &response_headers)
-                  .status(),
-              absl::UnknownError("Server error: no country specified"));
+  EXPECT_THAT(
+      InvokeRemote(*soia_client, ListUsers(), ListUsersRequest{},
+                   request_headers, &response_headers)
+          .status(),
+      absl::UnknownError(
+          "HTTP response status 500: server error: no country specified"));
 
   EXPECT_THAT(response_headers.map(),
               Contains(Pair("x-foo", ElementsAre("bar"))));
 
   EXPECT_THAT(
       InvokeRemote(*soia_client, soiagen_methods::True(), "", {}).status(),
-      absl::UnknownError(
-          "Bad request: Method not found: True; number: 2615726"));
+      absl::UnknownError("HTTP response status 400: bad request: method not "
+                         "found: True; number: 2615726"));
 
   server.stop();
   server_thread.join();

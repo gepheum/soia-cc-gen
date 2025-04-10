@@ -253,9 +253,11 @@ class ClientForTesting : public ::soia::service::Client {
       absl::string_view request_data,
       const soia::service::HttpHeaders& request_headers,
       soia::service::HttpHeaders& response_headers) const override {
-    return ::soia::service::HandleRequest(api_impl_, request_data,
-                                          request_headers, response_headers)
-        .response_data;
+    return ::soia::service::HandleRequest(
+               api_impl_, request_data,
+               [](absl::string_view) { return std::string(); },
+               request_headers, response_headers)
+        .AsStatus();
   }
 
  private:

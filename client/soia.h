@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <functional>
 #include <initializer_list>
 #include <iostream>
 #include <limits>
@@ -871,11 +872,45 @@ enum class ResponseType {
 };
 
 // Raw response returned by the server.
-struct ResponseData {
-  // The format of this string depends on the response type.
-  // It might be a binary string.
-  std::string response_data;
-  ResponseType response_type{};
+struct RawResponse {
+  // The meaning of this string depends on the response type.
+  std::string data;
+  ResponseType type{};
+
+  int status_code() const {
+    switch (type) {
+      case ResponseType::kOkJson:
+        return 200;
+      case ResponseType::kBadRequest:
+        return 400;
+      case ResponseType::kServerError:
+        return 500;
+    }
+  }
+
+  absl::string_view content_type() const {
+    switch (type) {
+      case ResponseType::kOkJson: {
+        static const char kApplicationJson[] = "application/json";
+        return kApplicationJson;
+      }
+      case ResponseType::kBadRequest:
+      case ResponseType::kServerError: {
+        static const char kTextPlain[] = "text/plain";
+        return kTextPlain;
+      }
+    }
+  }
+
+  absl::StatusOr<std::string> AsStatus() && {
+    switch (type) {
+      case ResponseType::kOkJson:
+        return std::move(data);
+      case ResponseType::kBadRequest:
+      case ResponseType::kServerError:
+        return absl::UnknownError(std::move(data));
+    }
+  }
 };
 
 class HttpHeaders {
@@ -2222,15 +2257,6 @@ soia::service::HttpHeaders HttplibToSoiaHeaders(const HttplibHeaders& input) {
   return result;
 }
 
-constexpr int kOk_200 = 200;
-constexpr int kBadRequest_400 = 400;
-constexpr int kInternalServerError_500 = 500;
-
-const std::string& GetHttpContentType(soia::service::ResponseType type);
-
-// Returns an error if response_data indicates a bad request or a server error.
-absl::Status CheckResponseData(absl::string_view response_data);
-
 template <typename MethodsTuple, std::size_t... Indices>
 constexpr bool unique_method_numbers_impl(std::index_sequence<Indices...>) {
   constexpr std::array<int, sizeof...(Indices)> numbers = {
@@ -2392,9 +2418,6 @@ void ForEachField(F&& f) {
 
 namespace soia_internal {
 
-constexpr absl::string_view kBadRequestPrefix = "bad-request:";
-constexpr absl::string_view kServerErrorPrefix = "server-error:";
-
 absl::StatusOr<
     std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
 SplitRequestData(absl::string_view request_data);
@@ -2425,17 +2448,33 @@ std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 template <typename ServiceImpl, typename RequestMeta, typename ResponseMeta>
 class HandleRequestOp {
  public:
-  HandleRequestOp(ServiceImpl* service_impl, absl::string_view request_data,
-                  soia::UnrecognizedFieldsPolicy unrecognized_fields,
-                  const RequestMeta* request_meta, ResponseMeta* response_meta)
+  HandleRequestOp(
+      ServiceImpl* service_impl, absl::string_view request_body,
+      std::function<std::string(absl::string_view)> get_query_param_fn,
+      soia::UnrecognizedFieldsPolicy unrecognized_fields,
+      const RequestMeta* request_meta, ResponseMeta* response_meta)
       : service_impl_(*service_impl),
-        request_data_(request_data),
+        request_body_(request_body),
+        get_query_param_fn_(get_query_param_fn),
         unrecognized_fields_(unrecognized_fields),
         request_meta_(*request_meta),
         response_meta_(*response_meta) {}
 
-  soia::service::ResponseData Run() {
-    if (request_data_ == "list") {
+  soia::service::RawResponse Run() {
+    absl::string_view request_data;
+    std::string request_data_str;
+    if (const absl::string_view m = get_query_param_fn_("m"); !m.empty()) {
+      request_data_str = absl::StrCat(get_query_param_fn_("method"), ":", m,
+                                      ":", get_query_param_fn_("f"), ":",
+                                      get_query_param_fn_("req"));
+      request_data = request_data_str;
+    } else if (!get_query_param_fn_("list").empty()) {
+      request_data = "list";
+    } else {
+      request_data = request_body_;
+    }
+
+    if (request_data == "list") {
       std::vector<MethodDescriptor> method_descriptors;
       std::apply(
           [&](auto... method) {
@@ -2447,10 +2486,10 @@ class HandleRequestOp {
           soia::service::ResponseType::kOkJson,
       };
     }
-    const auto parts = SplitRequestData(request_data_);
+    const auto parts = SplitRequestData(request_data);
     if (!parts.ok()) {
       return {
-          absl::StrCat(kBadRequestPrefix, parts.status().message()),
+          absl::StrCat("bad request: ", parts.status().message()),
           soia::service::ResponseType::kBadRequest,
       };
     }
@@ -2463,24 +2502,26 @@ class HandleRequestOp {
           (static_cast<void>(MaybeInvokeMethod(method)), ...);
         },
         typename ServiceImpl::methods());
-    if (response_data_.has_value()) {
-      return std::move(*response_data_);
+    if (raw_response_.has_value()) {
+      return std::move(*raw_response_);
     }
-    return {absl::StrCat(kBadRequestPrefix, "Method not found: ", method_name,
+    return {absl::StrCat("bad request: method not found: ", method_name,
                          "; number: ", method_number_),
             soia::service::ResponseType::kBadRequest};
   }
 
  private:
   ServiceImpl& service_impl_;
-  absl::string_view request_data_;
+  const absl::string_view request_body_;
+  const std::function<absl::string_view(absl::string_view)> get_query_param_fn_;
   const soia::UnrecognizedFieldsPolicy unrecognized_fields_;
   const RequestMeta& request_meta_;
   ResponseMeta& response_meta_;
+  absl::string_view request_data_;
   int method_number_ = 0;
   absl::string_view format_;
 
-  absl::optional<soia::service::ResponseData> response_data_;
+  absl::optional<soia::service::RawResponse> raw_response_;
 
   template <typename Method>
   void MaybeInvokeMethod(Method method) {
@@ -2488,29 +2529,29 @@ class HandleRequestOp {
     using RequestType = typename MethodType::request_type;
     using ResponseType = typename MethodType::response_type;
     if (MethodType::kNumber != method_number_) return;
-    response_data_.emplace();
+    raw_response_.emplace();
     absl::StatusOr<RequestType> request =
         soia::Parse<RequestType>(request_data_, unrecognized_fields_);
     if (!request.ok()) {
-      response_data_->response_data =
-          absl::StrCat(kBadRequestPrefix, request.status().message());
-      response_data_->response_type = soia::service::ResponseType::kBadRequest;
+      raw_response_->data =
+          absl::StrCat("bad request: ", request.status().message());
+      raw_response_->type = soia::service::ResponseType::kBadRequest;
       return;
     }
     absl::StatusOr<ResponseType> output = service_impl_(
         method, std::move(*request), request_meta_, response_meta_);
     if (!output.ok()) {
-      response_data_->response_data =
-          absl::StrCat(kServerErrorPrefix, output.status().message());
-      response_data_->response_type = soia::service::ResponseType::kServerError;
+      raw_response_->data =
+          absl::StrCat("server error: ", output.status().message());
+      raw_response_->type = soia::service::ResponseType::kServerError;
       return;
     }
     if (format_ == "readable") {
-      response_data_->response_data = soia::ToReadableJson(*output);
-      response_data_->response_type = soia::service::ResponseType::kOkJson;
+      raw_response_->data = soia::ToReadableJson(*output);
+      raw_response_->type = soia::service::ResponseType::kOkJson;
     } else {
-      response_data_->response_data = soia::ToDenseJson(*output);
-      response_data_->response_type = soia::service::ResponseType::kOkJson;
+      raw_response_->data = soia::ToDenseJson(*output);
+      raw_response_->type = soia::service::ResponseType::kOkJson;
     }
   }
 };
@@ -2532,7 +2573,17 @@ class HttplibClient : public soia::service::Client {
                                 request_data.length(), "text/plain");
     if (result) {
       response_headers = HttplibToSoiaHeaders(result->headers);
-      return std::move(result->body);
+      const int status_code = result->status;
+      if (200 <= status_code && status_code <= 299) {
+        // OK status.
+        return std::move(result->body);
+      } else {
+        const bool body_is_text =
+            result->get_header_value("Content-Type") == "text/plain";
+        return absl::UnknownError(absl::StrCat(
+            "HTTP response status ", status_code, body_is_text ? ": " : "",
+            body_is_text ? result->body : ""));
+      }
     } else {
       // HTTP error.
       response_headers = {};
@@ -2599,16 +2650,16 @@ namespace service {
 // Pass in UnrecognizedFieldsPolicy::kKeep if the request cannot come from a
 // malicious user.
 template <typename ServiceImpl>
-ResponseData HandleRequest(ServiceImpl& service_impl,
-                           absl::string_view request_data,
-                           const HttpHeaders& request_headers,
-                           HttpHeaders& response_headers,
-                           UnrecognizedFieldsPolicy unrecognized_fields =
-                               UnrecognizedFieldsPolicy::kDrop) {
+RawResponse HandleRequest(
+    ServiceImpl& service_impl, absl::string_view request_body,
+    std::function<std::string(absl::string_view)> get_query_param_fn,
+    const HttpHeaders& request_headers, HttpHeaders& response_headers,
+    UnrecognizedFieldsPolicy unrecognized_fields =
+        UnrecognizedFieldsPolicy::kDrop) {
   soia_internal::assert_unique_method_numbers<typename ServiceImpl::methods>();
-  return soia_internal::HandleRequestOp(&service_impl, request_data,
-                                        unrecognized_fields, &request_headers,
-                                        &response_headers)
+  return soia_internal::HandleRequestOp(&service_impl, request_body,
+                                        get_query_param_fn, unrecognized_fields,
+                                        &request_headers, &response_headers)
       .Run();
 }
 
@@ -2630,48 +2681,20 @@ void InstallServiceOnHttplibServer(
   ABSL_CHECK_NE(service_impl, nullptr);
   const typename HttplibServer::Handler handler =  //
       [service_impl, unrecognized_fields](const auto& req, auto& resp) {
-        absl::string_view request_data;
-        std::string request_data_str;
-        if (req.has_param("m")) {
-          request_data_str = absl::StrCat(
-              req.get_param_value("method"), ":", req.get_param_value("m"), ":",
-              req.get_param_value("f"), ":", req.get_param_value("req"));
-          request_data = request_data_str;
-        } else if (req.has_param("list")) {
-          request_data = "list";
-        } else {
-          request_data = req.body;
-        }
         const HttpHeaders request_headers =
             soia_internal::HttplibToSoiaHeaders(req.headers);
         HttpHeaders response_headers;
-        ResponseData response_data =
-            HandleRequest(*service_impl, request_data, request_headers,
-                          response_headers, unrecognized_fields);
+        RawResponse raw_response = HandleRequest(
+            *service_impl, req.body,
+            [&req](absl::string_view name) {
+              return req.get_param_value(std::string(name));
+            },
+            request_headers, response_headers, unrecognized_fields);
         soia_internal::SoiaToHttplibHeaders(response_headers, resp.headers);
 
-        const std::string& content_type =
-            soia_internal::GetHttpContentType(response_data.response_type);
-        resp.set_content(std::move(response_data.response_data), content_type);
-
-        if (resp.status == 0) {
-          // If the status hasn't been set by the service implementation, set it
-          // based on the response type.
-          switch (response_data.response_type) {
-            case ResponseType::kOkJson: {
-              resp.status = soia_internal::kOk_200;
-              break;
-            }
-            case ResponseType::kBadRequest: {
-              resp.status = soia_internal::kBadRequest_400;
-              break;
-            }
-            case ResponseType::kServerError: {
-              resp.status = soia_internal::kInternalServerError_500;
-              break;
-            }
-          }
-        }
+        resp.set_content(std::move(raw_response.data),
+                         std::string(raw_response.content_type()));
+        resp.status = raw_response.status_code();
       };
   server.Get(std::string(query_path), handler);
   server.Post(std::string(query_path), handler);
@@ -2696,11 +2719,6 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
   }
   if (!response_data.ok()) {
     return std::move(response_data).status();
-  }
-  if (absl::Status response_status =
-          soia_internal::CheckResponseData(*response_data);
-      !response_status.ok()) {
-    return response_status;
   }
   return Parse<typename Method::response_type>(*response_data,
                                                UnrecognizedFieldsPolicy::kKeep);

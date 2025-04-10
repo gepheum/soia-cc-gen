@@ -2522,43 +2522,17 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
   }
 }
 
-const std::string& GetHttpContentType(soia::service::ResponseType type) {
-  switch (type) {
-    case soia::service::ResponseType::kOkJson: {
-      static const auto* kContentType = new std::string("application/json");
-      return *kContentType;
-    }
-    case soia::service::ResponseType::kBadRequest:
-    case soia::service::ResponseType::kServerError: {
-      static const auto* kContentType = new std::string("text/plain");
-      return *kContentType;
-    }
-  }
-}
-
-absl::Status CheckResponseData(absl::string_view response_data) {
-  if (absl::StartsWith(response_data, kBadRequestPrefix)) {
-    return absl::UnknownError(absl::StrCat(
-        "Bad request: ", response_data.substr(kBadRequestPrefix.length())));
-  } else if (absl::StartsWith(response_data, kServerErrorPrefix)) {
-    return absl::UnknownError(absl::StrCat(
-        "Server error: ", response_data.substr(kServerErrorPrefix.length())));
-  } else {
-    return absl::OkStatus();
-  }
-}
-
 absl::StatusOr<
     std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
 SplitRequestData(absl::string_view request_data) {
   const std::vector<absl::string_view> parts =
       absl::StrSplit(request_data, absl::MaxSplits(':', 3));
   if (parts.size() != 4) {
-    return absl::InvalidArgumentError("Invalid request format");
+    return absl::InvalidArgumentError("invalid request format");
   }
   int method_number = 0;
   if (!absl::SimpleAtoi(parts[1], &method_number)) {
-    return absl::InvalidArgumentError("Can't parse method number");
+    return absl::InvalidArgumentError("can't parse method number");
   }
   return std::make_tuple(parts[0], method_number, parts[2], parts[3]);
 }
