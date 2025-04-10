@@ -14,7 +14,6 @@
 #include "absl/status/status.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
-#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
@@ -2538,19 +2537,21 @@ SplitRequestData(absl::string_view request_data) {
 }
 
 std::string MethodListToJson(const std::vector<MethodDescriptor>& methods) {
-  std::string result = "[";
+  std::string result = "{\n  \"methods\": [";
   for (size_t i = 0; i < methods.size(); ++i) {
     const MethodDescriptor& method = methods[i];
-    absl::StrAppend(
-        &result, (i == 0 ? "" : ","), "\n  {\n    \"method\": \"", method.name,
-        "\",\n    \"number\": ", method.number, ",\n    \"request\": ",
-        absl::StrReplaceAll(method.request_descriptor_json, {{"\n", "\n    "}}),
-        ",\n    \"response\": ",
-        absl::StrReplaceAll(method.response_descriptor_json,
-                            {{"\n", "\n    "}}),
-        "\n  }");
+    absl::StrAppend(&result, (i == 0 ? "" : ","),
+                    "\n      {\n        \"method\": \"", method.name,
+                    "\",\n        \"number\": ", method.number,
+                    ",\n        \"request\": ",
+                    absl::StrReplaceAll(method.request_descriptor_json,
+                                        {{"\n", "\n        "}}),
+                    ",\n        \"response\": ",
+                    absl::StrReplaceAll(method.response_descriptor_json,
+                                        {{"\n", "\n        "}}),
+                    "\n      }");
   }
-  return result += methods.empty() ? "]" : "\n]";
+  return result += methods.empty() ? "]\n}" : "\n  ]\n}";
 }
 
 }  // namespace soia_internal
