@@ -64,7 +64,12 @@ class ServiceImpl {
   absl::flat_hash_map<std::string, std::vector<User>> country_to_users;
 };
 
-TEST(SoiaServiceTest, TestServerAndClientWithMetadata) {
+class ServiceImplNoMethod {
+ public:
+  using methods = std::tuple<>;
+};
+
+TEST(SoiaServiceTest, TestServerAndClient) {
   constexpr int kPort = 8787;
 
   httplib::Server server;
@@ -185,6 +190,29 @@ TEST(SoiaServiceTest, TestServerAndClientWithMetadata) {
         "   },\n                \"number\": 3\n              }\n            "
         "]\n          }\n        ]\n      }\n    }\n  ]\n}");
   }
+
+  server.stop();
+  server_thread.join();
+}
+
+TEST(SoiaServiceTest, NoMethod) {
+  constexpr int kPort = 8787;
+
+  httplib::Server server;
+
+  auto service_impl = std::make_shared<ServiceImplNoMethod>();
+  InstallServiceOnHttplibServer(server, "/myapi", service_impl);
+
+  std::thread server_thread([&server]() { server.listen("localhost", kPort); });
+
+  server.wait_until_ready();
+
+  httplib::Client client("localhost", kPort);
+
+  auto result = client.Get("/myapi?list");
+  EXPECT_TRUE(result);
+  EXPECT_EQ(result->status, 200);
+  EXPECT_EQ(result->body, "{\n  \"methods\": []\n}");
 
   server.stop();
   server_thread.join();
