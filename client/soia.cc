@@ -2521,19 +2521,23 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
   }
 }
 
-absl::StatusOr<
-    std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
-SplitRequestData(absl::string_view request_data) {
+absl::StatusOr<std::tuple<absl::string_view, absl::string_view,
+                          absl::string_view, absl::string_view>>
+SplitRequestBody(absl::string_view request_body) {
   const std::vector<absl::string_view> parts =
-      absl::StrSplit(request_data, absl::MaxSplits(':', 3));
+      absl::StrSplit(request_body, absl::MaxSplits(':', 3));
   if (parts.size() != 4) {
     return absl::InvalidArgumentError("invalid request format");
   }
-  int method_number = 0;
-  if (!absl::SimpleAtoi(parts[1], &method_number)) {
+  return std::make_tuple(parts[0], parts[1], parts[2], parts[3]);
+}
+
+absl::StatusOr<int> ParseMethodNumber(absl::string_view method_number_str) {
+  int result = 0;
+  if (!absl::SimpleAtoi(method_number_str, &result)) {
     return absl::InvalidArgumentError("can't parse method number");
   }
-  return std::make_tuple(parts[0], method_number, parts[2], parts[3]);
+  return result;
 }
 
 std::string MethodListToJson(const std::vector<MethodDescriptor>& methods) {
@@ -2541,15 +2545,15 @@ std::string MethodListToJson(const std::vector<MethodDescriptor>& methods) {
   for (size_t i = 0; i < methods.size(); ++i) {
     const MethodDescriptor& method = methods[i];
     absl::StrAppend(&result, (i == 0 ? "" : ","),
-                    "\n      {\n        \"method\": \"", method.name,
-                    "\",\n        \"number\": ", method.number,
-                    ",\n        \"request\": ",
+                    "\n    {\n      \"method\": \"", method.name,
+                    "\",\n      \"number\": ", method.number,
+                    ",\n      \"request\": ",
                     absl::StrReplaceAll(method.request_descriptor_json,
-                                        {{"\n", "\n        "}}),
-                    ",\n        \"response\": ",
+                                        {{"\n", "\n      "}}),
+                    ",\n      \"response\": ",
                     absl::StrReplaceAll(method.response_descriptor_json,
-                                        {{"\n", "\n        "}}),
-                    "\n      }");
+                                        {{"\n", "\n      "}}),
+                    "\n    }");
   }
   return result += methods.empty() ? "]\n}" : "\n  ]\n}";
 }

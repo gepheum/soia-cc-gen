@@ -2418,9 +2418,11 @@ void ForEachField(F&& f) {
 
 namespace soia_internal {
 
-absl::StatusOr<
-    std::tuple<absl::string_view, int, absl::string_view, absl::string_view>>
-SplitRequestData(absl::string_view request_data);
+absl::StatusOr<std::tuple<absl::string_view, absl::string_view,
+                          absl::string_view, absl::string_view>>
+SplitRequestBody(absl::string_view request_body);
+
+absl::StatusOr<int> ParseMethodNumber(absl::string_view method_number_str);
 
 struct MethodDescriptor {
   absl::string_view name;
@@ -2448,11 +2450,11 @@ std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 template <typename ServiceImpl, typename RequestMeta, typename ResponseMeta>
 class HandleRequestOp {
  public:
-  HandleRequestOp(
-      ServiceImpl* service_impl, absl::string_view request_body,
-      std::function<std::string(absl::string_view)> get_query_param_fn,
-      soia::UnrecognizedFieldsPolicy unrecognized_fields,
-      const RequestMeta* request_meta, ResponseMeta* response_meta)
+  HandleRequestOp(ServiceImpl* service_impl, absl::string_view request_body,
+                  std::function<absl::optional<std::string>(absl::string_view)>
+                      get_query_param_fn,
+                  soia::UnrecognizedFieldsPolicy unrecognized_fields,
+                  const RequestMeta* request_meta, ResponseMeta* response_meta)
       : service_impl_(*service_impl),
         request_body_(request_body),
         get_query_param_fn_(get_query_param_fn),
@@ -2461,20 +2463,7 @@ class HandleRequestOp {
         response_meta_(*response_meta) {}
 
   soia::service::RawResponse Run() {
-    absl::string_view request_data;
-    std::string request_data_str;
-    if (const absl::string_view m = get_query_param_fn_("m"); !m.empty()) {
-      request_data_str = absl::StrCat(get_query_param_fn_("method"), ":", m,
-                                      ":", get_query_param_fn_("f"), ":",
-                                      get_query_param_fn_("req"));
-      request_data = request_data_str;
-    } else if (!get_query_param_fn_("list").empty()) {
-      request_data = "list";
-    } else {
-      request_data = request_body_;
-    }
-
-    if (request_data == "list") {
+    if (get_query_param_fn_("list").has_value() || request_body_ == "list") {
       std::vector<MethodDescriptor> method_descriptors;
       std::apply(
           [&](auto... method) {
@@ -2486,17 +2475,38 @@ class HandleRequestOp {
           soia::service::ResponseType::kOkJson,
       };
     }
-    const auto parts = SplitRequestData(request_data);
-    if (!parts.ok()) {
+
+    std::string method_name;
+    std::string method_number_str;
+    std::string request_data_str;
+    if (const auto m = get_query_param_fn_("m"); m.has_value()) {
+      method_name = get_query_param_fn_("method").value_or("");
+      method_number_str = *m;
+      request_data_buffer_ = get_query_param_fn_("req").value_or("");
+    } else {
+      const auto parts = SplitRequestBody(request_body_);
+      if (!parts.ok()) {
+        return {
+            absl::StrCat("bad request: ", parts.status().message()),
+            soia::service::ResponseType::kBadRequest,
+        };
+      }
+      method_name = std::get<0>(*parts);
+      method_number_str = std::get<1>(*parts);
+      format_ = std::get<2>(*parts);
+      request_data_ = std::get<3>(*parts);
+    }
+
+    const absl::StatusOr<int> method_number =
+        ParseMethodNumber(method_number_str);
+    if (!method_number.ok()) {
       return {
-          absl::StrCat("bad request: ", parts.status().message()),
+          absl::StrCat("bad request: ", method_number.status().message()),
           soia::service::ResponseType::kBadRequest,
       };
     }
-    const absl::string_view method_name = std::get<0>(*parts);
-    method_number_ = std::get<1>(*parts);
-    format_ = std::get<2>(*parts);
-    request_data_ = std::get<3>(*parts);
+    method_number_ = *method_number;
+
     std::apply(
         [&](auto... method) {
           (static_cast<void>(MaybeInvokeMethod(method)), ...);
@@ -2513,13 +2523,16 @@ class HandleRequestOp {
  private:
   ServiceImpl& service_impl_;
   const absl::string_view request_body_;
-  const std::function<absl::string_view(absl::string_view)> get_query_param_fn_;
+  const std::function<absl::optional<std::string>(absl::string_view)>
+      get_query_param_fn_;
   const soia::UnrecognizedFieldsPolicy unrecognized_fields_;
   const RequestMeta& request_meta_;
   ResponseMeta& response_meta_;
-  absl::string_view request_data_;
+
   int method_number_ = 0;
-  absl::string_view format_;
+  std::string format_;
+  std::string request_data_buffer_;
+  absl::string_view request_data_;
 
   absl::optional<soia::service::RawResponse> raw_response_;
 
@@ -2652,7 +2665,8 @@ namespace service {
 template <typename ServiceImpl>
 RawResponse HandleRequest(
     ServiceImpl& service_impl, absl::string_view request_body,
-    std::function<std::string(absl::string_view)> get_query_param_fn,
+    std::function<absl::optional<std::string>(absl::string_view)>
+        get_query_param_fn,
     const HttpHeaders& request_headers, HttpHeaders& response_headers,
     UnrecognizedFieldsPolicy unrecognized_fields =
         UnrecognizedFieldsPolicy::kDrop) {
@@ -2687,7 +2701,10 @@ void InstallServiceOnHttplibServer(
         RawResponse raw_response = HandleRequest(
             *service_impl, req.body,
             [&req](absl::string_view name) {
-              return req.get_param_value(std::string(name));
+              const std::string name_str(name);
+              return req.has_param(name_str)
+                         ? absl::make_optional(req.get_param_value(name_str))
+                         : absl::nullopt;
             },
             request_headers, response_headers, unrecognized_fields);
         soia_internal::SoiaToHttplibHeaders(response_headers, resp.headers);
