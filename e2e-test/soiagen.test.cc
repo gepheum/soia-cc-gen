@@ -645,7 +645,7 @@ class FakeServiceImplWithMeta {
   }
 };
 
-TEST(SoialibTest, SoiaServiceWithMetadata) {
+TEST(SoialibTest, SoiaService) {
   FakeServiceImplWithMeta service_impl;
   std::unique_ptr<soia::service::Client> client =
       soia::service::MakeClientForTesting(&service_impl);

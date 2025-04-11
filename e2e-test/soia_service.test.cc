@@ -11,6 +11,7 @@
 #include "absl/status/status.h"
 #include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "gmock/gmock.h"
 #include "httplib.h"
 #include "soia.h"
@@ -82,8 +83,9 @@ TEST(SoiaServiceTest, TestServerAndClientWithMetadata) {
 
   server.wait_until_ready();
 
-  std::unique_ptr<soia::service::Client> soia_client = MakeHttplibClient(
-      std::make_unique<httplib::Client>("localhost", kPort), "/myapi");
+  httplib::Client client("localhost", kPort);
+  std::unique_ptr<soia::service::Client> soia_client =
+      MakeHttplibClient(&client, "/myapi");
 
   HttpHeaders request_headers;
   request_headers.Insert("foo", "bar");
@@ -115,6 +117,74 @@ TEST(SoiaServiceTest, TestServerAndClientWithMetadata) {
       InvokeRemote(*soia_client, soiagen_methods::True(), "", {}).status(),
       absl::UnknownError("HTTP response status 400: bad request: method not "
                          "found: True; number: 2615726"));
+
+  // Send GET requests.
+
+  {
+    auto result = client.Get(
+        absl::StrCat("/myapi?m=", ListUsers::kNumber, "&req={}&f=readable"));
+    EXPECT_TRUE(result);
+    EXPECT_EQ(result->status, 500);
+    EXPECT_EQ(result->body, "server error: no country specified");
+  }
+
+  {
+    auto result = client.Get(absl::StrCat("/myapi?m=", ListUsers::kNumber,
+                                          "&req=[\"AU\"]&f=readable"));
+    EXPECT_TRUE(result);
+    EXPECT_EQ(result->status, 200);
+    EXPECT_EQ(result->body,
+              "{\n  \"users\": [\n    {\n      \"id\": 102,\n      "
+              "\"first_name\": \"Jane\",\n      \"last_name\": \"Doe\",\n      "
+              "\"country\": \"AU\"\n    }\n  ]\n}");
+  }
+
+  {
+    auto result = client.Get("/myapi?list");
+    EXPECT_TRUE(result);
+    EXPECT_EQ(result->status, 200);
+    EXPECT_EQ(
+        result->body,
+        "{\n  \"methods\": [\n    {\n      \"method\": \"ListUsers\",\n      "
+        "\"number\": 770621418,\n      \"request\": {\n        \"type\": {\n   "
+        "       \"kind\": \"record\",\n          \"value\": "
+        "\"methods.soia:ListUsersRequest\"\n        },\n        \"records\": "
+        "[\n          {\n            \"kind\": \"struct\",\n            "
+        "\"id\": \"methods.soia:ListUsersRequest\",\n            \"fields\": "
+        "[\n              {\n                \"name\": \"country\",\n          "
+        "      \"type\": {\n                  \"kind\": \"primitive\",\n       "
+        "           \"value\": \"string\"\n                }\n              "
+        "}\n            ]\n          }\n        ]\n      },\n      "
+        "\"response\": {\n        \"type\": {\n          \"kind\": "
+        "\"record\",\n          \"value\": "
+        "\"methods.soia:ListUsersResponse\"\n        },\n        \"records\": "
+        "[\n          {\n            \"kind\": \"struct\",\n            "
+        "\"id\": \"methods.soia:ListUsersResponse\",\n            \"fields\": "
+        "[\n              {\n                \"name\": \"users\",\n            "
+        "    \"type\": {\n                  \"kind\": \"array\",\n             "
+        "     \"value\": {\n                    \"item\": {\n                  "
+        "    \"kind\": \"record\",\n                      \"value\": "
+        "\"methods.soia:User\"\n                    },\n                    "
+        "\"key_chain\": [\n                      \"id\"\n                    "
+        "]\n                  }\n                }\n              }\n          "
+        "  ]\n          },\n          {\n            \"kind\": \"struct\",\n   "
+        "         \"id\": \"methods.soia:User\",\n            \"fields\": [\n  "
+        "            {\n                \"name\": \"id\",\n                "
+        "\"type\": {\n                  \"kind\": \"primitive\",\n             "
+        "     \"value\": \"uint64\"\n                }\n              },\n     "
+        "         {\n                \"name\": \"first_name\",\n               "
+        " \"type\": {\n                  \"kind\": \"primitive\",\n            "
+        "      \"value\": \"string\"\n                },\n                "
+        "\"number\": 1\n              },\n              {\n                "
+        "\"name\": \"last_name\",\n                \"type\": {\n               "
+        "   \"kind\": \"primitive\",\n                  \"value\": "
+        "\"string\"\n                },\n                \"number\": 2\n       "
+        "       },\n              {\n                \"name\": \"country\",\n  "
+        "              \"type\": {\n                  \"kind\": "
+        "\"primitive\",\n                  \"value\": \"string\"\n             "
+        "   },\n                \"number\": 3\n              }\n            "
+        "]\n          }\n        ]\n      }\n    }\n  ]\n}");
+  }
 
   server.stop();
   server_thread.join();

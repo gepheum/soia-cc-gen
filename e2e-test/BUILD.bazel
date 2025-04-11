@@ -73,6 +73,7 @@ cc_test(
         "@abseil-cpp//absl/container:flat_hash_map",
         "@abseil-cpp//absl/status:status_matchers",
         "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
         "@cpp-httplib//:httplib",
         "@googletest//:gtest",
         "@googletest//:gtest_main",

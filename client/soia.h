@@ -2478,11 +2478,12 @@ class HandleRequestOp {
 
     std::string method_name;
     std::string method_number_str;
-    std::string request_data_str;
     if (const auto m = get_query_param_fn_("m"); m.has_value()) {
       method_name = get_query_param_fn_("method").value_or("");
       method_number_str = *m;
+      format_ = get_query_param_fn_("f").value_or("");
       request_data_buffer_ = get_query_param_fn_("req").value_or("");
+      request_data_ = request_data_buffer_;
     } else {
       const auto parts = SplitRequestBody(request_body_);
       if (!parts.ok()) {
