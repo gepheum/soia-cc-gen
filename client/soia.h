@@ -2463,7 +2463,7 @@ class HandleRequestOp {
         response_meta_(*response_meta) {}
 
   soia::service::RawResponse Run() {
-    if (get_query_param_fn_("list").has_value() || request_body_ == "list") {
+    if (get_query_param_fn_("list").has_value()) {
       std::vector<MethodDescriptor> method_descriptors;
       std::apply(
           [&](auto... method) {
