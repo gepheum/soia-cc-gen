@@ -2678,7 +2678,7 @@ RawResponse HandleRequest(
       .Run();
 }
 
-// Installs a soia service on the given httplib::Server as the given query
+// Installs a soia service on the given httplib::Server at the given query
 // path. The httplib::Server type is referred to as a template parameter so as
 // not to make cpp-httplib a dependency of soia.
 //
