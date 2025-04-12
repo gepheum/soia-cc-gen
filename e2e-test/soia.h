@@ -2718,7 +2718,7 @@ void InstallServiceOnHttplibServer(
   server.Post(std::string(query_path), handler);
 }
 
-// Invokes the given method on a remote server by making an RPC.
+// Invokes the given method on a remote server through an RPC.
 // Returns an error status if there was a network error or if the server
 // returned an error.
 template <typename Method>
