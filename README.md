@@ -21,7 +21,7 @@ For more information, see this C++ project [example](https://github.com/gepheum/
 
 The examples below are for the code generated from [this](https://github.com/gepheum/soia-cc-example/blob/main/soia_src/user.soia) .soia file.
 
-### Referring to generated symbols.
+### Referring to generated symbols
 
 Every generated symbol lives in a namespace called `soiagen_${path}`,
 where `${path}` is the path to the .soia file relative from the root of the
