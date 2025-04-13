@@ -15,7 +15,7 @@ In your `soia.yml` file, add the following snippet under `generators`:
 
 The `npm run soiac` command will now generate C++ code within the `soiagen` directory.
 
-For more information, see this example C++ project [example](https://github.com/gepheum/soia-cc-example).
+For more information, see this C++ project [example](https://github.com/gepheum/soia-cc-example).
 
 ## C++ generated code guide
 
