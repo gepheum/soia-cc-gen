@@ -7,7 +7,7 @@ Official plugin for generating C++ code from [.soia](https://github.com/gepheum/
 From your project's root directory, run `npm i --save-dev soia-cc-gen`.
 
 In your `soia.yml` file, add the following snippet under `generators`:
-```
+```yaml
   - mod: soia-cc-gen
     config:
       writeGoogleTestHeaders: true
