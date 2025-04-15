@@ -19,6 +19,7 @@
 
 namespace {
 using ::absl_testing::IsOk;
+using ::absl_testing::IsOkAndHolds;
 using ::soia_testing_internal::HexToBytes;
 using ::soia_testing_internal::MakeReserializer;
 using ::testing::ElementsAre;
@@ -1229,6 +1230,16 @@ TEST(SoialibTest, HttpHeaders) {
   EXPECT_THAT(headers.map(),
               UnorderedElementsAre(Pair("accept", ElementsAre("A", "B")),
                                    Pair("origin", ElementsAre("C"))));
+}
+
+TEST(Soialib, DecodeUrlQueryString) {
+  EXPECT_THAT(
+      soia::service::DecodeUrlQueryString("%D1%88%D0%B5%D0%BB%D0%BB%D1%8B +"),
+      IsOkAndHolds("шеллы  "));
+  EXPECT_THAT(soia::service::DecodeUrlQueryString("%3"),
+              absl::InvalidArgumentError("Invalid escape sequence"));
+  EXPECT_THAT(soia::service::DecodeUrlQueryString("%4z"),
+              absl::InvalidArgumentError("Invalid escape sequence"));
 }
 
 }  // namespace

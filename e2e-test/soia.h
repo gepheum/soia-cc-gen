@@ -1,5 +1,6 @@
 // Soia client library
 
+#include <cstddef>
 #ifndef SOIA_SOIA_H_VERSION
 #define SOIA_SOIA_H_VERSION 20250403
 
@@ -8,7 +9,6 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
-#include <functional>
 #include <initializer_list>
 #include <iostream>
 #include <limits>
@@ -2452,19 +2452,16 @@ template <typename ServiceImpl, typename RequestMeta, typename ResponseMeta>
 class HandleRequestOp {
  public:
   HandleRequestOp(ServiceImpl* service_impl, absl::string_view request_body,
-                  std::function<absl::optional<std::string>(absl::string_view)>
-                      get_query_param_fn,
                   soia::UnrecognizedFieldsPolicy unrecognized_fields,
                   const RequestMeta* request_meta, ResponseMeta* response_meta)
       : service_impl_(*service_impl),
         request_body_(request_body),
-        get_query_param_fn_(get_query_param_fn),
         unrecognized_fields_(unrecognized_fields),
         request_meta_(*request_meta),
         response_meta_(*response_meta) {}
 
   soia::service::RawResponse Run() {
-    if (get_query_param_fn_("list").has_value()) {
+    if (request_body_ == "list") {
       std::vector<MethodDescriptor> method_descriptors;
       std::apply(
           [&](auto... method) {
@@ -2477,27 +2474,17 @@ class HandleRequestOp {
       };
     }
 
-    std::string method_name;
-    std::string method_number_str;
-    if (const auto m = get_query_param_fn_("m"); m.has_value()) {
-      method_name = get_query_param_fn_("method").value_or("");
-      method_number_str = *m;
-      format_ = get_query_param_fn_("f").value_or("");
-      request_data_buffer_ = get_query_param_fn_("req").value_or("");
-      request_data_ = request_data_buffer_;
-    } else {
-      const auto parts = SplitRequestBody(request_body_);
-      if (!parts.ok()) {
-        return {
-            absl::StrCat("bad request: ", parts.status().message()),
-            soia::service::ResponseType::kBadRequest,
-        };
-      }
-      method_name = std::get<0>(*parts);
-      method_number_str = std::get<1>(*parts);
-      format_ = std::get<2>(*parts);
-      request_data_ = std::get<3>(*parts);
+    const auto parts = SplitRequestBody(request_body_);
+    if (!parts.ok()) {
+      return {
+          absl::StrCat("bad request: ", parts.status().message()),
+          soia::service::ResponseType::kBadRequest,
+      };
     }
+    const absl::string_view method_name = std::get<0>(*parts);
+    const absl::string_view method_number_str = std::get<1>(*parts);
+    format_ = std::get<2>(*parts);
+    request_data_ = std::get<3>(*parts);
 
     const absl::StatusOr<int> method_number =
         ParseMethodNumber(method_number_str);
@@ -2525,15 +2512,12 @@ class HandleRequestOp {
  private:
   ServiceImpl& service_impl_;
   const absl::string_view request_body_;
-  const std::function<absl::optional<std::string>(absl::string_view)>
-      get_query_param_fn_;
   const soia::UnrecognizedFieldsPolicy unrecognized_fields_;
   const RequestMeta& request_meta_;
   ResponseMeta& response_meta_;
 
   int method_number_ = 0;
   std::string format_;
-  std::string request_data_buffer_;
   absl::string_view request_data_;
 
   absl::optional<soia::service::RawResponse> raw_response_;
@@ -2667,22 +2651,31 @@ namespace service {
 // call HandleRequest in the logic for installing a soia service on your
 // server.
 //
-// Pass in UnrecognizedFieldsPolicy::kKeep if the request cannot come from a
-// malicious user.
+// If the request is a GET request, pass in the decoded query string as the
+// request's body. The query string is the part of the URL after '?', and it can
+// be decoded with DecodeUrlQueryString.
+//
+// Pass in UnrecognizedFieldsPolicy::kKeep if the request is guaranteed to come
+// from a trusted user.
 template <typename ServiceImpl>
-RawResponse HandleRequest(
-    ServiceImpl& service_impl, absl::string_view request_body,
-    std::function<absl::optional<std::string>(absl::string_view)>
-        get_query_param_fn,
-    const HttpHeaders& request_headers, HttpHeaders& response_headers,
-    UnrecognizedFieldsPolicy unrecognized_fields =
-        UnrecognizedFieldsPolicy::kDrop) {
+RawResponse HandleRequest(ServiceImpl& service_impl,
+                          absl::string_view request_body,
+                          const HttpHeaders& request_headers,
+                          HttpHeaders& response_headers,
+                          UnrecognizedFieldsPolicy unrecognized_fields =
+                              UnrecognizedFieldsPolicy::kDrop) {
   soia_internal::assert_unique_method_numbers<typename ServiceImpl::methods>();
   return soia_internal::HandleRequestOp(&service_impl, request_body,
-                                        get_query_param_fn, unrecognized_fields,
-                                        &request_headers, &response_headers)
+                                        unrecognized_fields, &request_headers,
+                                        &response_headers)
       .Run();
 }
+
+// Decodes the given query string encoded with Javascript's
+// encodeURIComponent functon.
+// For example: "foo%20%3F%3D%23" -> "foo ?=#"
+absl::StatusOr<std::string> DecodeUrlQueryString(
+    absl::string_view encoded_query_string);
 
 // Installs a soia service on the given httplib::Server at the given query
 // path. The httplib::Server type is referred to as a template parameter so as
@@ -2691,8 +2684,8 @@ RawResponse HandleRequest(
 // ServiceImpl must satisfy the requirements outlined in the documentation for
 // HandleRequest.
 //
-// Pass in UnrecognizedFieldsPolicy::kKeep if the requests cannot come from a
-// malicious user.
+// Pass in UnrecognizedFieldsPolicy::kKeep if the request is guaranteed to come
+// from a trusted user.
 template <typename HttplibServer, typename ServiceImpl>
 void InstallServiceOnHttplibServer(
     HttplibServer& server, absl::string_view query_path,
@@ -2705,15 +2698,24 @@ void InstallServiceOnHttplibServer(
         const HttpHeaders request_headers =
             soia_internal::HttplibToSoiaHeaders(req.headers);
         HttpHeaders response_headers;
-        RawResponse raw_response = HandleRequest(
-            *service_impl, req.body,
-            [&req](absl::string_view name) {
-              const std::string name_str(name);
-              return req.has_param(name_str)
-                         ? absl::make_optional(req.get_param_value(name_str))
-                         : absl::nullopt;
-            },
-            request_headers, response_headers, unrecognized_fields);
+        absl::string_view request_body;
+        std::string decoded_query_string;
+        if (!req.body.empty()) {
+          request_body = req.body;
+        } else {
+          const absl::string_view target = req.target;
+          absl::string_view query_string;
+          const size_t index_of_question_mark = target.find('?');
+          if (index_of_question_mark != absl::string_view::npos) {
+            query_string = target.substr(index_of_question_mark + 1);
+          }
+          decoded_query_string =
+              DecodeUrlQueryString(query_string).value_or("");
+          request_body = decoded_query_string;
+        }
+        RawResponse raw_response =
+            HandleRequest(*service_impl, request_body, request_headers,
+                          response_headers, unrecognized_fields);
         soia_internal::SoiaToHttplibHeaders(response_headers, resp.headers);
 
         resp.set_content(std::move(raw_response.data),

@@ -127,15 +127,15 @@ TEST(SoiaServiceTest, TestServerAndClient) {
 
   {
     auto result = client.Get(
-        absl::StrCat("/myapi?m=", ListUsers::kNumber, "&req={}&f=readable"));
+        absl::StrCat("/myapi?foo:", ListUsers::kNumber, "%3Areadable:{%7d"));
     EXPECT_TRUE(result);
     EXPECT_EQ(result->status, 500);
     EXPECT_EQ(result->body, "server error: no country specified");
   }
 
   {
-    auto result = client.Get(absl::StrCat("/myapi?m=", ListUsers::kNumber,
-                                          "&req=[\"AU\"]&f=readable"));
+    auto result = client.Get(absl::StrCat("/myapi?foo:", ListUsers::kNumber,
+                                          "%3Areadable:[\"AU\"]"));
     EXPECT_TRUE(result);
     EXPECT_EQ(result->status, 200);
     EXPECT_EQ(result->body,

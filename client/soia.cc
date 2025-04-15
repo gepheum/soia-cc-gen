@@ -22,60 +22,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 
-namespace soia {
-namespace reflection {
-
-std::string TypeDescriptor::AsJson() const {
-  soia_internal::ReadableJson json;
-  soia_internal::Append(*this, json);
-  return std::move(json).out;
-}
-
-absl::StatusOr<TypeDescriptor> TypeDescriptor::FromJson(
-    absl::string_view json) {
-  soia_internal::JsonTokenizer tokenizer(json.begin(), json.end(),
-                                         UnrecognizedFieldsPolicy::kDrop);
-  tokenizer.Next();
-  TypeDescriptor result;
-  soia_internal::Parse(tokenizer, result);
-  if (tokenizer.state().token_type != soia_internal::JsonTokenType::kStrEnd) {
-    tokenizer.mutable_state().PushUnexpectedTokenError("end");
-  }
-  const absl::Status status = tokenizer.state().status;
-  if (!status.ok()) return status;
-  return result;
-}
-
-}  // namespace reflection
-
-namespace service {
-
-void HttpHeaders::Insert(absl::string_view name, absl::string_view value) {
-  map_[absl::AsciiStrToLower(name)].emplace_back(value);
-}
-
-const std::vector<std::string>& HttpHeaders::Get(absl::string_view name) const {
-  const auto it = map_.find(absl::AsciiStrToLower(name));
-  if (it == map_.cend()) {
-    static const auto* const kResult = new std::vector<std::string>();
-    return *kResult;
-  } else {
-    return it->second;
-  }
-}
-
-absl::string_view HttpHeaders::GetLast(absl::string_view name) const {
-  const std::vector<std::string>& values = Get(name);
-  if (values.empty()) {
-    return "";
-  } else {
-    return values.back();
-  }
-}
-
-}  // namespace service
-}  // namespace soia
-
 namespace soia_internal {
 namespace {
 
@@ -2559,3 +2505,96 @@ std::string MethodListToJson(const std::vector<MethodDescriptor>& methods) {
 }
 
 }  // namespace soia_internal
+
+namespace soia {
+namespace reflection {
+
+std::string TypeDescriptor::AsJson() const {
+  soia_internal::ReadableJson json;
+  soia_internal::Append(*this, json);
+  return std::move(json).out;
+}
+
+absl::StatusOr<TypeDescriptor> TypeDescriptor::FromJson(
+    absl::string_view json) {
+  soia_internal::JsonTokenizer tokenizer(json.begin(), json.end(),
+                                         UnrecognizedFieldsPolicy::kDrop);
+  tokenizer.Next();
+  TypeDescriptor result;
+  soia_internal::Parse(tokenizer, result);
+  if (tokenizer.state().token_type != soia_internal::JsonTokenType::kStrEnd) {
+    tokenizer.mutable_state().PushUnexpectedTokenError("end");
+  }
+  const absl::Status status = tokenizer.state().status;
+  if (!status.ok()) return status;
+  return result;
+}
+
+}  // namespace reflection
+
+namespace service {
+
+void HttpHeaders::Insert(absl::string_view name, absl::string_view value) {
+  map_[absl::AsciiStrToLower(name)].emplace_back(value);
+}
+
+const std::vector<std::string>& HttpHeaders::Get(absl::string_view name) const {
+  const auto it = map_.find(absl::AsciiStrToLower(name));
+  if (it == map_.cend()) {
+    static const auto* const kResult = new std::vector<std::string>();
+    return *kResult;
+  } else {
+    return it->second;
+  }
+}
+
+absl::string_view HttpHeaders::GetLast(absl::string_view name) const {
+  const std::vector<std::string>& values = Get(name);
+  if (values.empty()) {
+    return "";
+  } else {
+    return values.back();
+  }
+}
+
+absl::StatusOr<std::string> DecodeUrlQueryString(
+    absl::string_view encoded_query_string) {
+  std::string result;
+  result.reserve(encoded_query_string.length());
+
+  for (size_t i = 0; i < encoded_query_string.length(); i++) {
+    const char c = encoded_query_string[i];
+    switch (c) {
+      case '%': {
+        if (i + 2 >= encoded_query_string.length()) {
+          goto invalid_escape_sequence;
+        }
+        const int hi =
+            soia_internal::HexDigitToInt(encoded_query_string[i + 1]);
+        const int lo =
+            soia_internal::HexDigitToInt(encoded_query_string[i + 2]);
+        if (hi < 0 || lo < 0) {
+          goto invalid_escape_sequence;
+        }
+        const uint8_t c = hi << 4 | lo;
+        result += static_cast<char>(c);
+        i += 2;
+        break;
+      }
+      case '+':
+        result += ' ';
+        break;
+      default:
+        result += c;
+        break;
+    }
+  }
+
+  return result;
+
+invalid_escape_sequence:
+  return absl::InvalidArgumentError("Invalid escape sequence");
+}
+
+}  // namespace service
+}  // namespace soia
