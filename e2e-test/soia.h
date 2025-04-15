@@ -897,7 +897,7 @@ struct RawResponse {
       }
       case ResponseType::kBadRequest:
       case ResponseType::kServerError: {
-        static const char kTextPlain[] = "text/plain";
+        static const char kTextPlain[] = "text/plain; charset=utf-8";
         return kTextPlain;
       }
     }
@@ -2584,8 +2584,9 @@ class HttplibClient : public soia::service::Client {
     auto headers =
         decltype(std::declval<HttplibClientPtr>()->Get("")->headers)();
     SoiaToHttplibHeaders(request_headers, headers);
-    auto result = client_->Post(query_path_, headers, request_data.data(),
-                                request_data.length(), "text/plain");
+    auto result =
+        client_->Post(query_path_, headers, request_data.data(),
+                      request_data.length(), "text/plain; charset=utf-8");
     if (result) {
       response_headers = HttplibToSoiaHeaders(result->headers);
       const int status_code = result->status;
