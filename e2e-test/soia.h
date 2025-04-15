@@ -28,6 +28,7 @@
 #include "absl/log/die_if_null.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
@@ -2592,8 +2593,12 @@ class HttplibClient : public soia::service::Client {
         // OK status.
         return std::move(result->body);
       } else {
+        const std::string content_type =
+            result->get_header_value("Content-Type");
         const bool body_is_text =
-            result->get_header_value("Content-Type") == "text/plain";
+            content_type == "text/plain" ||
+            absl::StartsWith(content_type, "text/plain ") ||
+            absl::StartsWith(content_type, "text/plain;");
         return absl::UnknownError(absl::StrCat(
             "HTTP response status ", status_code, body_is_text ? ": " : "",
             body_is_text ? result->body : ""));
