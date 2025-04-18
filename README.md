@@ -2,6 +2,8 @@
 
 Official plugin for generating C++ code from [.soia](https://github.com/gepheum/soia) files.
 
+Targets C++17 and higher.
+
 ## Installation
 
 From your project's root directory, run `npm i --save-dev soia-cc-gen`.
