@@ -1,3 +1,6 @@
+[![npm](https://img.shields.io/npm/v/soia-cc-gen)](https://www.npmjs.com/package/soia-cc-gen)
+[![build](https://github.com/gepheum/soia-cc-gen/workflows/Build/badge.svg)](https://github.com/gepheum/soia-cc-gen/actions)
+
 # Soia's C++ Code Generator
 
 Official plugin for generating C++ code from [.soia](https://github.com/gepheum/soia) files.
