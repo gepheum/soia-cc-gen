@@ -2495,10 +2495,7 @@ class HandleRequestOp {
           soia::service::ResponseType::kOkJson,
       };
     } else if (request_body_ == "restudio") {
-      return {
-        std::string(kRestudioHtml),
-        soia::service::ResponseType::kOkHtml
-      };
+      return {std::string(kRestudioHtml), soia::service::ResponseType::kOkHtml};
     }
 
     const auto parts = SplitRequestBody(request_body_);
