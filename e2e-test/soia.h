@@ -864,6 +864,8 @@ namespace service {
 enum class ResponseType {
   // The method invocation succeeded and the response data is in JSON format.
   kOkJson,
+  // The method invocation succeeded and the response data is in HTML format.
+  kOkHtml,
   // The method invocation failed because the request was malformed.
   // The response data is "bad-request:" followed by an error message.
   kBadRequest,
@@ -881,6 +883,7 @@ struct RawResponse {
   int status_code() const {
     switch (type) {
       case ResponseType::kOkJson:
+      case ResponseType::kOkHtml:
         return 200;
       case ResponseType::kBadRequest:
         return 400;
@@ -895,6 +898,10 @@ struct RawResponse {
         static const char kApplicationJson[] = "application/json";
         return kApplicationJson;
       }
+      case ResponseType::kOkHtml: {
+        static const char kTextHtml[] = "text/html";
+        return kTextHtml;
+      }
       case ResponseType::kBadRequest:
       case ResponseType::kServerError: {
         static const char kTextPlain[] = "text/plain; charset=utf-8";
@@ -906,6 +913,7 @@ struct RawResponse {
   absl::StatusOr<std::string> AsStatus() && {
     switch (type) {
       case ResponseType::kOkJson:
+      case ResponseType::kOkHtml:
         return std::move(data);
       case ResponseType::kBadRequest:
       case ResponseType::kServerError:
@@ -2448,6 +2456,20 @@ MethodDescriptor MakeMethodDescriptor(Method method) {
 
 std::string MethodListToJson(const std::vector<MethodDescriptor>&);
 
+constexpr absl::string_view kRestudioHtml = R"html(<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>RESTudio</title>
+    <script src="https://cdn.jsdelivr.net/npm/restudio/dist/restudio-standalone.js"></script>
+  </head>
+  <body style="margin: 0; padding: 0;">
+    <restudio-app></restudio-app>
+  </body>
+</html>
+)html";
+
 template <typename ServiceImpl, typename RequestMeta, typename ResponseMeta>
 class HandleRequestOp {
  public:
@@ -2461,7 +2483,7 @@ class HandleRequestOp {
         response_meta_(*response_meta) {}
 
   soia::service::RawResponse Run() {
-    if (request_body_ == "list") {
+    if (request_body_ == "" || request_body_ == "list") {
       std::vector<MethodDescriptor> method_descriptors;
       std::apply(
           [&](auto... method) {
@@ -2471,6 +2493,11 @@ class HandleRequestOp {
       return {
           MethodListToJson(method_descriptors),
           soia::service::ResponseType::kOkJson,
+      };
+    } else if (request_body_ == "restudio") {
+      return {
+        std::string(kRestudioHtml),
+        soia::service::ResponseType::kOkHtml
       };
     }
 

@@ -37,6 +37,5 @@ jobs:
           exclude-regex: ^soiagen/.*$
       - name: Run e2e tests
         run: |
-          cd e2e-test
           npm run test
           npm run copy-to-client:check
