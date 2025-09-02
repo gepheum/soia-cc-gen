@@ -1,11 +1,3 @@
-import { EnumField, getEnumFields } from "./enum_field.js";
-import { CC_KEYWORDS } from "./keywords.js";
-import { RecursvityResolver } from "./recursivity_resolver.js";
-import {
-  TypeSpeller,
-  getClassName,
-  modulePathToNamespace,
-} from "./type_speller.js";
 import {
   type CodeGenerator,
   type Constant,
@@ -19,6 +11,14 @@ import {
   simpleHash,
 } from "soiac";
 import { z } from "zod";
+import { EnumField, getEnumFields } from "./enum_field.js";
+import { CC_KEYWORDS } from "./keywords.js";
+import { RecursvityResolver } from "./recursivity_resolver.js";
+import {
+  TypeSpeller,
+  getClassName,
+  modulePathToNamespace,
+} from "./type_speller.js";
 
 const Config = z.object({
   writeGoogleTestHeaders: z.boolean(),
@@ -36,7 +36,7 @@ class CcCodeGenerator implements CodeGenerator<Config> {
     const outputFiles: CodeGenerator.OutputFile[] = [];
 
     for (const module of input.modules) {
-      const generator = new CcLibFilesGenerator(module, recordMap, config);
+      const generator = new CcLibFilesGenerator(module, recordMap);
       outputFiles.push({
         path: module.path.replace(/\.soia$/, ".h"),
         code: generator.getCode(".h"),
@@ -65,7 +65,6 @@ class CcLibFilesGenerator {
   constructor(
     private readonly inModule: Module,
     private readonly recordMap: ReadonlyMap<RecordKey, RecordLocation>,
-    config: Config,
   ) {
     this.typeSpeller = new TypeSpeller(recordMap, inModule, this.includes);
     this.recursivityResolver = RecursvityResolver.resolve(recordMap, inModule);
@@ -380,7 +379,6 @@ class CcLibFilesGenerator {
       let lastFieldNumber = -1;
       for (const field of fieldsByNumber) {
         const { number, name } = field;
-        const isFirstField = field === fields[0];
         // Append one 0 for every removed number.
         for (let i = lastFieldNumber + 1; i < number; ++i) {
           charLiterals.push("'0'");
@@ -625,8 +623,6 @@ class CcLibFilesGenerator {
 
     {
       // RegisterRecords(soia_type<T>, RecordRegistry&)
-      const { modulePath } = struct;
-      const recordName = struct.record.name.text;
       const recordId = getRecordId(struct);
       source.internalMain.push(`void ${adapterName}::RegisterRecords(`);
       source.internalMain.push("    soia_type<type>,");
@@ -707,7 +703,7 @@ class CcLibFilesGenerator {
     const { header, recordMap, source, typeSpeller } = this;
 
     const { nestedRecords } = record.record;
-    const fields = getEnumFields(record.record.fields, this.typeSpeller);
+    const fields = getEnumFields(record.record.fields, typeSpeller);
     const constFields = fields.filter((f) => !f.valueType);
     const valueFields = fields.filter((f) => f.valueType);
     const pointerFields = valueFields.filter((f) => f.usePointer);
@@ -809,7 +805,7 @@ class CcLibFilesGenerator {
     source.mainMiddle.push("}");
     source.mainMiddle.push("");
     for (const field of constFields) {
-      const { identifier, valueType } = field;
+      const { identifier } = field;
       header.mainMiddle.push(
         `  static constexpr auto ${identifier} = ::soiagen::${identifier};`,
       );
@@ -1542,7 +1538,6 @@ class CcLibFilesGenerator {
 
     {
       // RegisterRecords(soia_type<T>, RecordRegistry&)
-      const { modulePath } = record;
       const recordId = getRecordId(record);
       source.internalMain.push(`void ${adapterName}::RegisterRecords(`);
       source.internalMain.push("    soia_type<type>,");
@@ -1593,7 +1588,7 @@ class CcLibFilesGenerator {
     }
   }
 
-  private writeCodeInHeaderForAdapter(record: RecordLocation) {
+  private writeCodeInHeaderForAdapter(record: RecordLocation): void {
     const { header } = this;
 
     const { fields, recordType } = record.record;
@@ -1606,7 +1601,7 @@ class CcLibFilesGenerator {
     header.internalMain.push(" public:");
     header.internalMain.push(`  using type = ${qualifiedName};`);
     if (fields.length || recordType === "enum") {
-      function fieldToReflectionType(f: Field): string {
+      const fieldToReflectionType = (f: Field): string => {
         const fieldName = f.name.text;
         if (recordType === "struct") {
           return `struct_field<type, soiagen::get_${fieldName}<>>`;
@@ -1615,7 +1610,7 @@ class CcLibFilesGenerator {
         } else {
           return `soia::reflection::enum_const_field<soiagen::k_${fieldName.toLowerCase()}>`;
         }
-      }
+      };
       const reflectionTypes = fields
         .map(fieldToReflectionType)
         .concat(
@@ -1795,7 +1790,7 @@ class CcLibFilesGenerator {
     for (const h of [...this.includes].sort()) {
       header.includes.push(`#include ${h}`);
       testingHeader.includes.push(
-        `#include ${h.replace(/\.h\"$/, '.testing.h"')}`,
+        `#include ${h.replace(/\.h"$/, '.testing.h"')}`,
       );
     }
   }
@@ -1929,7 +1924,7 @@ function fileContentsToCode(fileContents: FileContents): string {
 
 export const GENERATOR = new CcCodeGenerator();
 
-function maybeEscapeLowerCaseName(name: string) {
+function maybeEscapeLowerCaseName(name: string): string {
   return CC_KEYWORDS.has(name) ? `${name}_` : name;
 }
 
@@ -1949,7 +1944,7 @@ function bytesToIntLiterals(bytes: readonly number[]): string {
   return bytes.map((b) => `${b}`).join(", ");
 }
 
-function getRecordId(record: RecordLocation) {
+function getRecordId(record: RecordLocation): string {
   const qualifiedName = record.recordAncestors
     .map((r) => r.name.text)
     .join(".");

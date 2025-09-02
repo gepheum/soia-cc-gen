@@ -1,5 +1,5 @@
-import { TypeSpeller } from "./type_speller.js";
 import { Field, ResolvedType, convertCase } from "soiac";
+import { TypeSpeller } from "./type_speller.js";
 
 interface MutableEnumField {
   /** As specified in the .soia file. */

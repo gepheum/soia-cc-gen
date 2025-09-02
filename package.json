@@ -30,12 +30,17 @@
     "gen-clang-json": "cd e2e-test && bazel run @hedron_compile_commands//:refresh_all && cd ..",
     "test-cc": "cd e2e-test && CC=clang BAZEL_COMPILER=llvm bazel test --copt=-DADDRESS_SANITIZER --copt=-fsanitize=address --linkopt=-fsanitize=address --test_output=errors :all && cd ..",
     "build-client": "cd client && bazel build :soia && bazel build :soia.testing && cd ..",
-    "test": "npm run build && soiac --root=e2e-test && npm run test-cc && npm run build-client"
+    "test": "npm run build && soiac --root=e2e-test && npm run test-cc && npm run build-client",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
   },
   "devDependencies": {
-    "@trivago/prettier-plugin-sort-imports": "^4.3.0",
     "@types/node": "^20.11.5",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
     "prettier": "^3.2.4",
+    "prettier-plugin-organize-imports": "^4.2.0",
     "soiac": "^1.0.23",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
