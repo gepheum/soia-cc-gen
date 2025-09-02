@@ -25,8 +25,8 @@
     "build": "tsc",
     "copy-to-client": "cp e2e-test/soia.h client && cp e2e-test/soia.cc client && cp e2e-test/soia.testing.h client",
     "copy-to-client:check": "diff -s e2e-test/soia.h client/soia.h && diff -s e2e-test/soia.cc client/soia.cc && diff -s e2e-test/soia.testing.h client/soia.testing.h",
-    "format": "prettier --write \"**/*.ts\"",
-    "format:check": "prettier --check \"**/*.ts\"",
+    "format": "prettier --write \"**/*.ts\" && cd e2e-test && soiac --fmt fix && cd ..",
+    "format:check": "prettier --check \"**/*.ts\" && cd e2e-test && soiac --fmt check && cd ..",
     "gen-clang-json": "cd e2e-test && bazel run @hedron_compile_commands//:refresh_all && cd ..",
     "test-cc": "cd e2e-test && CC=clang BAZEL_COMPILER=llvm bazel test --copt=-DADDRESS_SANITIZER --copt=-fsanitize=address --linkopt=-fsanitize=address --test_output=errors :all && cd ..",
     "build-client": "cd client && bazel build :soia && bazel build :soia.testing && cd ..",
@@ -41,7 +41,7 @@
     "eslint": "^8.54.0",
     "prettier": "^3.2.4",
     "prettier-plugin-organize-imports": "^4.2.0",
-    "soiac": "^1.0.23",
+    "soiac": "^1.0.41",
     "ts-node": "^10.9.2",
     "typescript": "^5.3.3"
   }

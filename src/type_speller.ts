@@ -39,14 +39,15 @@ export class TypeSpeller {
         const itemType = this.getCcType(type.item, opts);
         const { key } = type;
         if (key) {
-          const { fieldNames } = key;
+          const { path } = key;
           let keyType = "";
-          for (const fieldName of fieldNames) {
-            const isLastField = fieldName === fieldNames.at(-1);
+          for (const pathItem of path) {
+            const fieldName = pathItem.name.text;
+            const isLastField = pathItem === path.at(-1);
             if (isLastField && key.keyType.kind === "record") {
               keyType = `::soia::get_kind<${keyType}>`;
             } else {
-              keyType = `::soiagen::get_${fieldName.text}<${keyType}>`;
+              keyType = `::soiagen::get_${fieldName}<${keyType}>`;
             }
           }
           return `::soia::keyed_items<${itemType}, ${keyType}>`;

@@ -13,9 +13,9 @@ const ONE_CONSTANT: JsonValue = {
     },
     {
       kind: "string",
-      value: '\
+      value: "\
         foo\
-        bar',
+        bar",
     },
     {
       kind: "object",

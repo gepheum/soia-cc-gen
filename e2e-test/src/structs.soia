@@ -105,8 +105,7 @@ struct RecB {
 }
 
 struct Name {
-  struct Name1 {
-  }
+  struct Name1 {}
   struct Name2 {
     name1: Name1;
   }
