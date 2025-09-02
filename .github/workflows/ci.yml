@@ -27,8 +27,8 @@ jobs:
           # Share repository cache between workflows.
           repository-cache: true
       - run: npm ci
-      - run: npm run format:check
       - run: npm run build
+      - run: npm run format:check
       - name: Run clang-format style check for C/C++/Protobuf programs.
         uses: jidicula/clang-format-action@v4.15.0
         with:
