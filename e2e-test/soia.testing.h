@@ -27,7 +27,7 @@ struct StructIs {
 namespace soia_internal {
 template <typename Matcher>
 bool IsAnythingMatcher(const Matcher& matcher) {
-  static const std::string* const kIsAnything = []() {
+  static const std::string* absl_nonnull const kIsAnything = []() {
     std::stringstream ss;
     _.DescribeTo(&ss);
     return new std::string(ss.str());
@@ -47,7 +47,7 @@ void VariadicExpand(const T (&)[N]) {}
 
 template <typename Getter, typename Matcher>
 std::nullopt_t DescribeTo(const std::pair<Getter, Matcher>& field_matcher,
-                          ::std::ostream* os, bool& first) {
+                          ::std::ostream* absl_nonnull os, bool& first) {
   const Matcher& matcher = field_matcher.second;
   if (IsAnythingMatcher(matcher)) return std::nullopt;
   *os << (first ? "" : ", and ") << "has field " << Getter::kFieldName
@@ -59,8 +59,8 @@ std::nullopt_t DescribeTo(const std::pair<Getter, Matcher>& field_matcher,
 
 template <typename Getter, typename Matcher>
 std::nullopt_t DescribeNegationTo(
-    const std::pair<Getter, Matcher>& field_matcher, ::std::ostream* os,
-    bool& first) {
+    const std::pair<Getter, Matcher>& field_matcher,
+    ::std::ostream* absl_nonnull os, bool& first) {
   const Matcher& matcher = field_matcher.second;
 
   if (IsAnythingMatcher(matcher)) return std::nullopt;
@@ -72,10 +72,10 @@ std::nullopt_t DescribeNegationTo(
 }
 
 template <size_t I, typename Struct, typename FieldMatcher>
-std::nullopt_t MatchAndExplain(const FieldMatcher& field_matcher,
-                               const Struct& t,
-                               StringMatchResultListener* inner_listener,
-                               size_t& failed_pos) {
+std::nullopt_t MatchAndExplain(
+    const FieldMatcher& field_matcher, const Struct& t,
+    StringMatchResultListener* absl_nonnull inner_listener,
+    size_t& failed_pos) {
   if (failed_pos != ~size_t{}) return std::nullopt;
   const auto& [getter, matcher] = field_matcher;
   if (IsAnythingMatcher(matcher)) return std::nullopt;
@@ -107,7 +107,7 @@ class StructIsMatcherImpl<Struct, FieldMatchers, std::index_sequence<I...>>
         decltype(std::get<I>(matchers_).first)::kFieldName))...});
   }
 
-  void DescribeTo(::std::ostream* os) const override {
+  void DescribeTo(::std::ostream* absl_nonnull os) const override {
     bool first = true;
     field_matcher::VariadicExpand(
         {(field_matcher::DescribeTo(std::get<I>(matchers_), os, first))...});
@@ -116,7 +116,7 @@ class StructIsMatcherImpl<Struct, FieldMatchers, std::index_sequence<I...>>
     }
   }
 
-  void DescribeNegationTo(::std::ostream* os) const override {
+  void DescribeNegationTo(::std::ostream* absl_nonnull os) const override {
     bool first = true;
     field_matcher::VariadicExpand({(field_matcher::DescribeNegationTo(
         std::get<I>(matchers_), os, first))...});
@@ -125,13 +125,14 @@ class StructIsMatcherImpl<Struct, FieldMatchers, std::index_sequence<I...>>
     }
   }
 
-  bool MatchAndExplain(const Struct& t,
-                       MatchResultListener* listener) const override {
+  bool MatchAndExplain(const Struct& t, MatchResultListener* absl_nonnull
+                                            listener) const override {
     return MatchInternal(t, listener);
   }
 
  private:
-  bool MatchInternal(const Struct& t, MatchResultListener* listener) const {
+  bool MatchInternal(const Struct& t,
+                     MatchResultListener* absl_nonnull listener) const {
     if (!listener->IsInterested()) {
       // If the listener is not interested, we don't need to construct the
       // explanation.
@@ -201,7 +202,7 @@ class EnumValueIsMatcher {
     explicit Impl(const InnerMatcher& matcher)
         : matcher_(MatcherCast<const value_type&>(matcher)) {}
 
-    void DescribeTo(::std::ostream* os) const override {
+    void DescribeTo(::std::ostream* absl_nonnull os) const override {
       *os << "is a " << Option::kFieldName;
       if (!IsAnythingMatcher(matcher_)) {
         *os << " that ";
@@ -209,7 +210,7 @@ class EnumValueIsMatcher {
       }
     }
 
-    void DescribeNegationTo(::std::ostream* os) const override {
+    void DescribeNegationTo(::std::ostream* absl_nonnull os) const override {
       *os << "is not a " << Option::kFieldName;
       if (!IsAnythingMatcher(matcher_)) {
         *os << " that ";
@@ -217,8 +218,8 @@ class EnumValueIsMatcher {
       }
     }
 
-    bool MatchAndExplain(const Enum& e,
-                         MatchResultListener* listener) const override {
+    bool MatchAndExplain(const Enum& e, MatchResultListener* absl_nonnull
+                                            listener) const override {
       const auto* actual_value = Option::get_or_null(e);
       if (actual_value == nullptr) {
         *listener << "which is " << e;
@@ -244,7 +245,7 @@ EnumValueIsMatcher<Option, InnerMatcher> EnumValueIs(InnerMatcher matcher) {
 template <typename FakeOrMockApiImpl>
 class ClientForTesting : public ::soia::service::Client {
  public:
-  explicit ClientForTesting(FakeOrMockApiImpl* api_impl)
+  explicit ClientForTesting(FakeOrMockApiImpl* absl_nonnull api_impl)
       : api_impl_(*ABSL_DIE_IF_NULL(api_impl)) {}
 
   virtual ~ClientForTesting() = default;
@@ -270,7 +271,7 @@ namespace service {
 
 template <typename FakeOrMockApiImpl>
 std::unique_ptr<::soia::service::Client> MakeClientForTesting(
-    absl::Nonnull<FakeOrMockApiImpl*> api_impl) {
+    FakeOrMockApiImpl* absl_nonnull api_impl) {
   return std::make_unique<
       testing::soia_internal::ClientForTesting<FakeOrMockApiImpl>>(api_impl);
 }

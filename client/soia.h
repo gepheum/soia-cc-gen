@@ -117,10 +117,10 @@ class ByteString {
  private:
   static_assert(sizeof(char) == 1);
 
-  ByteString(const uint8_t* data, size_t length)
+  ByteString(const uint8_t* absl_nonnull data, size_t length)
       : data_(data), length_(length) {}
 
-  const uint8_t* data_ = nullptr;
+  const uint8_t* absl_nonnull data_ = nullptr;
   size_t length_ = 0;
 
   void FreeData() const {
@@ -129,7 +129,7 @@ class ByteString {
     }
   }
 
-  static uint8_t* CopyData(absl::string_view str) {
+  static uint8_t* absl_nullable CopyData(absl::string_view str) {
     if (str.empty()) return nullptr;
     uint8_t* result = new uint8_t[str.length()];
     std::memcpy(result, (const uint8_t*)str.data(), str.length());
@@ -336,7 +336,7 @@ class keyed_items {
   // Returns a pointer to the last item with the given key or nullptr if no such
   // item exists.
   template <typename K>
-  const T* find_or_null(const K& key) const {
+  const T* absl_nullable find_or_null(const K& key) const {
     return find_or_null_impl(key_type<T, GetKey>(key));
   }
 
@@ -394,13 +394,16 @@ class keyed_items {
     }
 
     std::vector<T>& operator*() & { return keyed_items_.vector_; }
-    std::vector<T>* operator->() & { return &keyed_items_.vector_; }
+    std::vector<T>* absl_nonnull operator->() & {
+      return &keyed_items_.vector_;
+    }
 
     std::vector<T>& operator*() && = delete;
-    std::vector<T>* operator->() && = delete;
+    std::vector<T>* absl_nonnull operator->() && = delete;
 
    private:
-    vector_mutator(keyed_items* keyed_items) : keyed_items_(*keyed_items) {}
+    vector_mutator(keyed_items* absl_nonnull keyed_items)
+        : keyed_items_(*keyed_items) {}
 
     keyed_items& keyed_items_;
 
@@ -511,7 +514,7 @@ class keyed_items {
   }
 
   template <typename K>
-  const T* find_or_null_impl(K key) const {
+  const T* absl_nullable find_or_null_impl(K key) const {
     static_assert(std::is_same_v<K, key_type<T, GetKey>>);
     ABSL_CHECK(!being_mutated_);
     if (vector_.empty()) return nullptr;
@@ -529,7 +532,7 @@ class keyed_items {
   }
 
   template <typename SlotIntType, typename K>
-  const T* FindOrNull(K key, uint32_t key_hash) const {
+  const T* absl_nullable FindOrNull(K key, uint32_t key_hash) const {
     static_assert(std::is_same_v<K, key_type<T, GetKey>>);
     const size_t num_slots = slots_bytes_.size() / sizeof(SlotIntType);
     SlotIntType* slots = (SlotIntType*)slots_bytes_.data();
@@ -654,8 +657,8 @@ class rec {
   operator const T&() const { return **this; }
   operator T&() { return **this; }
 
-  const T* operator->() const { return &(**this); }
-  T* operator->() { return &(**this); }
+  const T* absl_nonnull operator->() const { return &(**this); }
+  T* absl_nonnull operator->() { return &(**this); }
 
   rec& operator=(const rec& other) {
     if (other.value_ != nullptr) {
@@ -1041,14 +1044,14 @@ class ByteSink {
   size_t length() const { return pos_ - data_; }
 
   // Invalidated by anything that can change the capacity of the byte sink.
-  uint8_t* data() { return data_; }
+  uint8_t* absl_nonnull data() { return data_; }
   // Invalidated by anything that can change the capacity of the byte sink.
-  const uint8_t* data() const { return data_; }
+  const uint8_t* absl_nonnull data() const { return data_; }
 
   // Invalidated by anything that can change the capacity of the byte sink.
-  uint8_t* pos() { return pos_; }
+  uint8_t* absl_nonnull pos() { return pos_; }
   // The given pointer must be in the [data, data + length] range.
-  void set_pos(uint8_t* pos) { pos_ = pos; }
+  void set_pos(uint8_t* absl_nonnull pos) { pos_ = pos; }
 
   // Prepares for N bytes to be pushed with PushUnsafe().
   void Prepare(size_t n) {
@@ -1076,20 +1079,22 @@ class ByteSink {
     PushUnsafe(first, tail...);
   }
 
-  void PushNUnsafe(const uint8_t* src, size_t n) {
+  void PushNUnsafe(const uint8_t* absl_nonnull src, size_t n) {
     std::memcpy((pos_ += n) - n, src, n);
   }
 
-  void PushN(const uint8_t* src, size_t n) {
+  void PushN(const uint8_t* absl_nonnull src, size_t n) {
     Prepare(n);
     PushNUnsafe(src, n);
   }
 
-  void PushRangeUnsafe(const uint8_t* begin, const uint8_t* end) {
+  void PushRangeUnsafe(const uint8_t* absl_nonnull begin,
+                       const uint8_t* absl_nonnull end) {
     PushNUnsafe(begin, end - begin);
   }
 
-  void PushRange(const uint8_t* begin, const uint8_t* end) {
+  void PushRange(const uint8_t* absl_nonnull begin,
+                 const uint8_t* absl_nonnull end) {
     PushN(begin, end - begin);
   }
 
@@ -1105,20 +1110,20 @@ class ByteSink {
  private:
   static constexpr size_t kDefaultCapacity = 16;
   size_t capacity_ = kDefaultCapacity;
-  uint8_t* data_ = new uint8_t[kDefaultCapacity];
-  uint8_t* pos_ = data_;
+  uint8_t* absl_nonnull data_ = new uint8_t[kDefaultCapacity];
+  uint8_t* absl_nonnull pos_ = data_;
 
   size_t capacity_left() const { return capacity_ - length(); }
 };
 
 struct ByteSource {
-  ByteSource(const uint8_t* begin, size_t length)
+  ByteSource(const uint8_t* absl_nonnull begin, size_t length)
       : pos(begin), end(begin + length) {}
-  ByteSource(const char* begin, size_t length)
+  ByteSource(const char* absl_nonnull begin, size_t length)
       : ByteSource((const uint8_t*)begin, length) {}
 
-  const uint8_t* pos = nullptr;
-  const uint8_t* const end;
+  const uint8_t* absl_nonnull pos;
+  const uint8_t* absl_nonnull const end;
   bool keep_unrecognized_fields = false;
   bool error = false;
 
@@ -1182,7 +1187,8 @@ enum class JsonTokenType {
 
 class JsonTokenizer {
  public:
-  JsonTokenizer(const char* json_code_begin, const char* json_code_end,
+  JsonTokenizer(const char* absl_nonnull json_code_begin,
+                const char* absl_nonnull json_code_end,
                 soia::UnrecognizedFieldsPolicy unrecognized_fields)
       : keep_unrecognized_fields_(unrecognized_fields ==
                                   soia::UnrecognizedFieldsPolicy::kKeep) {
@@ -1199,9 +1205,9 @@ class JsonTokenizer {
   JsonTokenType Next();
 
   struct State {
-    const char* begin = nullptr;
-    const char* pos = nullptr;
-    const char* end = nullptr;
+    const char* absl_nullable begin = nullptr;
+    const char* absl_nullable pos = nullptr;
+    const char* absl_nullable end = nullptr;
     absl::Status status = absl::OkStatus();
     JsonTokenType token_type = JsonTokenType::kStrEnd;
     int64_t int_value = 0;
@@ -1234,7 +1240,7 @@ void SkipValue(JsonTokenizer& tokenizer);
 
 class JsonArrayCloser {
  public:
-  explicit JsonArrayCloser(DenseJson* json) : json_(json->out) {}
+  explicit JsonArrayCloser(DenseJson* absl_nonnull json) : json_(json->out) {}
   ~JsonArrayCloser() { json_ += ']'; }
 
  private:
@@ -1243,7 +1249,7 @@ class JsonArrayCloser {
 
 class JsonArrayReader {
  public:
-  explicit JsonArrayReader(JsonTokenizer* tokenizer);
+  explicit JsonArrayReader(JsonTokenizer* absl_nonnull tokenizer);
   bool NextElement();
   JsonTokenizer& tokenizer() { return tokenizer_; }
 
@@ -1254,7 +1260,7 @@ class JsonArrayReader {
 
 class JsonObjectReader {
  public:
-  explicit JsonObjectReader(JsonTokenizer* tokenizer);
+  explicit JsonObjectReader(JsonTokenizer* absl_nonnull tokenizer);
 
   bool NextEntry();
 
@@ -1720,7 +1726,7 @@ std::string ToDebugString(const T& input) {
   return result.out;
 }
 
-inline std::string ToDebugString(const char* input) {
+inline std::string ToDebugString(const char* absl_nonnull input) {
   return ToDebugString(std::string(input));
 }
 
@@ -2011,7 +2017,7 @@ inline RecAdapter GetAdapter(soia_type<soia::rec<T>>);
 
 class JsonObjectWriter {
  public:
-  JsonObjectWriter(ReadableJson* out) : out_(*out) {}
+  JsonObjectWriter(ReadableJson* absl_nonnull out) : out_(*out) {}
 
   ~JsonObjectWriter() {
     if (has_content_) {
@@ -2023,7 +2029,7 @@ class JsonObjectWriter {
   }
 
   template <typename T>
-  JsonObjectWriter& Write(const char* field_name, const T& value) {
+  JsonObjectWriter& Write(const char* absl_nonnull field_name, const T& value) {
     if (!TypeAdapter<T>::IsDefault(value)) {
       if (has_content_) {
         out_.out += ',';
@@ -2049,26 +2055,30 @@ class JsonObjectWriter {
 class StructJsonObjectParserImpl {
  public:
   template <typename T, typename field_value>
-  void AddField(const std::string& name, field_value T::* data_member) {
+  void AddField(const std::string& name,
+                field_value T::* absl_nonnull data_member) {
     fields_[name] = std::make_unique<FieldImpl<T, field_value>>(data_member);
   }
 
-  void Parse(JsonTokenizer& tokenizer, void* out) const;
+  void Parse(JsonTokenizer& tokenizer, void* absl_nonnull out) const;
 
  private:
   struct Field {
     virtual ~Field() = default;
-    virtual void Parse(JsonTokenizer& tokenizer, void* out) const = 0;
+    virtual void Parse(JsonTokenizer& tokenizer,
+                       void* absl_nonnull out) const = 0;
   };
   absl::flat_hash_map<std::string, std::unique_ptr<Field>> fields_;
 
   template <typename T, typename field_value>
   struct FieldImpl : public Field {
-    FieldImpl(field_value T::* data_member) : data_member_(data_member) {}
-    void Parse(JsonTokenizer& tokenizer, void* out) const override {
+    FieldImpl(field_value T::* absl_nonnull data_member)
+        : data_member_(data_member) {}
+    void Parse(JsonTokenizer& tokenizer,
+               void* absl_nonnull out) const override {
       ::soia_internal::Parse(tokenizer, static_cast<T*>(out)->*data_member_);
     }
-    field_value T::* const data_member_;
+    field_value T::* absl_nonnull const data_member_;
   };
 };
 
@@ -2076,8 +2086,8 @@ template <typename T>
 class StructJsonObjectParser {
  public:
   template <typename field_value>
-  StructJsonObjectParser* AddField(const std::string& name,
-                                   field_value T::* data_member) {
+  StructJsonObjectParser* absl_nonnull
+  AddField(const std::string& name, field_value T::* absl_nonnull data_member) {
     impl_.AddField<T>(name, data_member);
     return this;
   }
@@ -2102,18 +2112,20 @@ class EnumJsonObjectParserImpl {
     fields_[name] = std::make_unique<VariantFieldImpl<T, ValueType>>();
   }
 
-  void Parse(JsonTokenizer& tokenizer, void* out) const;
+  void Parse(JsonTokenizer& tokenizer, void* absl_nonnull out) const;
 
  private:
   struct Field {
     virtual ~Field() = default;
-    virtual void Parse(JsonTokenizer& tokenizer, void* out) const = 0;
+    virtual void Parse(JsonTokenizer& tokenizer,
+                       void* absl_nonnull out) const = 0;
   };
   absl::flat_hash_map<std::string, std::unique_ptr<Field>> fields_;
 
   template <typename T, typename WrapperType>
   struct FieldImpl : public Field {
-    void Parse(JsonTokenizer& tokenizer, void* out) const override {
+    void Parse(JsonTokenizer& tokenizer,
+               void* absl_nonnull out) const override {
       WrapperType wrapper;
       ::soia_internal::Parse(tokenizer, wrapper.value);
       *static_cast<T*>(out) = std::move(wrapper);
@@ -2122,7 +2134,8 @@ class EnumJsonObjectParserImpl {
 
   template <typename T, typename ValueType>
   struct VariantFieldImpl : public Field {
-    void Parse(JsonTokenizer& tokenizer, void* out) const override {
+    void Parse(JsonTokenizer& tokenizer,
+               void* absl_nonnull out) const override {
       ValueType value;
       ::soia_internal::Parse(tokenizer, value);
       *static_cast<T*>(out) = std::move(value);
@@ -2134,13 +2147,13 @@ template <typename T>
 class EnumJsonObjectParser {
  public:
   template <typename WrapperType>
-  EnumJsonObjectParser* AddField(const std::string& name) {
+  EnumJsonObjectParser* absl_nonnull AddField(const std::string& name) {
     impl_.AddField<T, WrapperType>(name);
     return this;
   }
 
   template <typename ValueType>
-  EnumJsonObjectParser* AddVariantField(const std::string& name) {
+  EnumJsonObjectParser* absl_nonnull AddVariantField(const std::string& name) {
     impl_.AddVariantField<T, ValueType>(name);
     return this;
   }
@@ -2155,7 +2168,7 @@ class EnumJsonObjectParser {
 
 class EnumJsonArrayParser {
  public:
-  EnumJsonArrayParser(JsonTokenizer* tokenizer);
+  EnumJsonArrayParser(JsonTokenizer* absl_nonnull tokenizer);
 
   int ReadNumber();
   void Finish();
@@ -2166,7 +2179,7 @@ class EnumJsonArrayParser {
 
 class DebugObjectWriter {
  public:
-  DebugObjectWriter(DebugString* out) : out_(*out) {}
+  DebugObjectWriter(DebugString* absl_nonnull out) : out_(*out) {}
 
   ~DebugObjectWriter() {
     if (has_content_) {
@@ -2178,7 +2191,8 @@ class DebugObjectWriter {
   }
 
   template <typename T>
-  DebugObjectWriter& Write(const char* field_name, const T& value) {
+  DebugObjectWriter& Write(const char* absl_nonnull field_name,
+                           const T& value) {
     if (!TypeAdapter<T>::IsDefault(value)) {
       if (has_content_) {
         out_.out += *out_.new_line;
@@ -2341,7 +2355,7 @@ std::string ToDenseJson(const T& input) {
   return std::move(dense_json).out;
 }
 
-inline std::string ToDenseJson(const char* input) {
+inline std::string ToDenseJson(const char* absl_nonnull input) {
   return ToDenseJson(std::string(input));
 }
 
@@ -2355,7 +2369,7 @@ std::string ToReadableJson(const T& input) {
   return std::move(readable_json).out;
 }
 
-inline std::string ToReadableJson(const char* input) {
+inline std::string ToReadableJson(const char* absl_nonnull input) {
   return ToReadableJson(std::string(input));
 }
 
@@ -2369,7 +2383,7 @@ ByteString ToBytes(const T& input) {
   return std::move(byte_sink).ToByteString();
 }
 
-inline ByteString ToBytes(const char* input) {
+inline ByteString ToBytes(const char* absl_nonnull input) {
   return ToBytes(std::string(input));
 }
 
@@ -2473,9 +2487,11 @@ constexpr absl::string_view kRestudioHtml = R"html(<!DOCTYPE html>
 template <typename ServiceImpl, typename RequestMeta, typename ResponseMeta>
 class HandleRequestOp {
  public:
-  HandleRequestOp(ServiceImpl* service_impl, absl::string_view request_body,
+  HandleRequestOp(ServiceImpl* absl_nonnull service_impl,
+                  absl::string_view request_body,
                   soia::UnrecognizedFieldsPolicy unrecognized_fields,
-                  const RequestMeta* request_meta, ResponseMeta* response_meta)
+                  const RequestMeta* absl_nonnull request_meta,
+                  ResponseMeta* absl_nonnull response_meta)
       : service_impl_(*service_impl),
         request_body_(request_body),
         unrecognized_fields_(unrecognized_fields),
@@ -2758,7 +2774,7 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
     const Client& client, Method method,
     const typename Method::request_type& request,
     const HttpHeaders& request_headers = {},
-    HttpHeaders* response_headers = nullptr) {
+    HttpHeaders* absl_nonnull response_headers = nullptr) {
   const std::string request_data = absl::StrCat(
       Method::kMethodName, ":", Method::kNumber, "::", ToDenseJson(request));
   HttpHeaders response_headers_tmp;
@@ -2782,7 +2798,7 @@ absl::StatusOr<typename Method::response_type> InvokeRemote(
 // If you are not using cpp-httplib, you can write your own Client
 // implementation.
 template <typename HttplibClient>
-std::unique_ptr<Client> MakeHttplibClient(absl::Nonnull<HttplibClient*> client,
+std::unique_ptr<Client> MakeHttplibClient(HttplibClient* absl_nonnull client,
                                           absl::string_view query_path) {
   return std::make_unique<soia_internal::HttplibClient<HttplibClient*>>(
       client, std::string(query_path));

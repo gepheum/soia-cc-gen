@@ -2,11 +2,11 @@
 
 # Choose the most recent version available at
 # https://registry.bazel.build/modules/abseil-cpp
-bazel_dep(name = "abseil-cpp", version = "20250127.0")
+bazel_dep(name = "abseil-cpp", version = "20250814.0")
 
 # Choose the most recent version available at
 # https://registry.bazel.build/modules/googletest
-bazel_dep(name = "googletest", version = "1.16.0")
+bazel_dep(name = "googletest", version = "1.17.0")
 
 # Hedron's Compile Commands Extractor for Bazel
 # https://github.com/hedronvision/bazel-compile-commands-extractor
@@ -21,4 +21,4 @@ git_override(
 
 # Choose the most recent version available at
 # https://registry.bazel.build/modules/cpp-httplib
-bazel_dep(name = "cpp-httplib", version = "0.16.3.bzl.1")
+bazel_dep(name = "cpp-httplib", version = "0.22.0")
