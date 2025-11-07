@@ -1543,8 +1543,7 @@ void StringAdapter::Parse(ByteSource& source, std::string& out) {
 }
 
 void BytesAdapter::Append(const soia::ByteString& input, DenseJson& out) {
-  absl::StrAppend(&out.out, "\"", absl::Base64Escape(input.as_string()),
-                  "\"");
+  absl::StrAppend(&out.out, "\"", absl::Base64Escape(input.as_string()), "\"");
 }
 
 void BytesAdapter::Append(const soia::ByteString& input, ReadableJson& out) {
