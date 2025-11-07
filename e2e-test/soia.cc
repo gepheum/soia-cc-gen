@@ -1542,11 +1542,14 @@ void StringAdapter::Parse(ByteSource& source, std::string& out) {
   }
 }
 
-void BytesAdapter::AppendJson(const soia::ByteString& input, std::string& out) {
-  const char quote = '"';
-  const absl::string_view quote_str(&quote, 1);
-  absl::StrAppend(&out, quote_str, absl::Base64Escape(input.as_string()),
-                  quote_str);
+void BytesAdapter::Append(const soia::ByteString& input, DenseJson& out) {
+  absl::StrAppend(&out.out, "\"", absl::Base64Escape(input.as_string()),
+                  "\"");
+}
+
+void BytesAdapter::Append(const soia::ByteString& input, ReadableJson& out) {
+  absl::StrAppend(&out.out, "\"hex:", absl::BytesToHexString(input.as_string()),
+                  "\"");
 }
 
 void BytesAdapter::Append(const soia::ByteString& input, DebugString& out) {
@@ -1577,11 +1580,18 @@ void BytesAdapter::Parse(JsonTokenizer& tokenizer, soia::ByteString& out) {
     case JsonTokenType::kString: {
       const std::string& string_value = tokenizer.state().string_value;
       std::string bytes;
-      if (!absl::Base64Unescape(string_value, &bytes)) {
+      if (absl::StartsWith(string_value, "hex:")) {
+        const absl::string_view hex_string =
+            absl::string_view(string_value).substr(4);
+        if (!absl::HexStringToBytes(hex_string, &bytes)) {
+          tokenizer.mutable_state().PushError(
+              "error while parsing JSON: not a hex string");
+        }
+      } else if (!absl::Base64Unescape(string_value, &bytes)) {
         tokenizer.mutable_state().PushError(
             "error while parsing JSON: not a Base64 string");
       }
-      out = bytes;
+      out = std::move(bytes);
       tokenizer.Next();
       break;
     }

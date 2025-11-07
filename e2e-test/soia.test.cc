@@ -956,7 +956,7 @@ TEST(SoialibTest, ReserializeString) {
 TEST(SoialibTest, ReserializeBytes) {
   EXPECT_THAT(MakeReserializer(soia::ByteString())
                   .IsDefault()
-                  .ExpectReadableJson("\"\"")
+                  .ExpectReadableJson("\"hex:\"")
                   .ExpectDenseJson("\"\"")
                   .ExpectDebugString("soia::ByteString({})")
                   .ExpectBytes("f4")
@@ -968,7 +968,7 @@ TEST(SoialibTest, ReserializeBytes) {
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer(soia::ByteString({0, 0x08, 0xFF}))
-                  .ExpectReadableJson("\"AAj/\"")
+                  .ExpectReadableJson("\"hex:0008ff\"")
                   .ExpectDenseJson("\"AAj/\"")
                   .ExpectDebugString("soia::ByteString({0x00, 0x08, 0xFF})")
                   .ExpectBytes("f5030008ff")

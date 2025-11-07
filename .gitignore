@@ -3,6 +3,7 @@
 MODULE.bazel.lock
 bazel-*
 dist
+e2e-test/external
 node_modules
 soiagen
 tsconfig.tsbuildinfo

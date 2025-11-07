@@ -1556,13 +1556,8 @@ struct StringAdapter {
 struct BytesAdapter {
   static bool IsDefault(const soia::ByteString& input) { return input.empty(); }
 
-  template <typename Out>
-  static void Append(const soia::ByteString& input, Out& out) {
-    AppendJson(input, out.out);
-  }
-
-  static void AppendJson(const soia::ByteString&, std::string& out);
-
+  static void Append(const soia::ByteString&, DenseJson& out);
+  static void Append(const soia::ByteString&, ReadableJson& out);
   static void Append(const soia::ByteString& input, DebugString& out);
   static void Append(const soia::ByteString& input, ByteSink& out);
   static void Parse(JsonTokenizer& tokenizer, soia::ByteString& out);
