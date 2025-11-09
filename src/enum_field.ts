@@ -34,7 +34,7 @@ export function getEnumFields(
   typeSpeller: TypeSpeller,
 ): readonly EnumField[] {
   const result: MutableEnumField[] = [];
-  result.push(makeConstantField("UNKNOWN"));
+  result.push(makeUnknownField());
   for (const inField of fields) {
     let outField: MutableEnumField;
     if (inField.type) {
@@ -46,6 +46,21 @@ export function getEnumFields(
     result.push(outField);
   }
   return result;
+}
+
+function makeUnknownField(): MutableEnumField {
+  return {
+    fieldName: "?",
+    valueType: "",
+    valueTypeWithNamespace: "",
+    fieldNumber: 0,
+    isUnknownField: true,
+    structType: `k_unknown`,
+    typeAlias: "",
+    identifier: `kUnknown`,
+    kindEnumerator: `kConstUnknown`,
+    usePointer: false,
+  };
 }
 
 function makeConstantField(fieldName: string): MutableEnumField {
@@ -60,7 +75,7 @@ function makeConstantField(fieldName: string): MutableEnumField {
     valueType: "",
     valueTypeWithNamespace: "",
     fieldNumber: 0,
-    isUnknownField: fieldName === "UNKNOWN",
+    isUnknownField: false,
     structType: `k_${lowerUnderscore}`,
     typeAlias: "",
     identifier: `k${upperCamel}`,

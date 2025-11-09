@@ -107,3 +107,18 @@ cc_test(
         "@googletest//:gtest_main",
     ],
 )
+
+cc_test(
+    name = "soia_goldens.test",
+    size = "small",
+    srcs = ["soia_goldens.test.cc"],
+    deps = [
+        ":soia",
+        ":soiagen",
+        "@abseil-cpp//absl/status",
+        "@abseil-cpp//absl/status:statusor",
+        "@abseil-cpp//absl/strings",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
+    ],
+)

@@ -161,14 +161,14 @@ TEST(SoiagenTest, ReserializeStruct) {
           .ExpectReadableJson(
               "{\n  \"car\": {\n    \"model\": \"Toyota\",\n    "
               "\"purchase_time\": {\n      \"unix_millis\": 1000,\n      "
-              "\"formatted\": \"1970-01-01T00:00:01+00:00\"\n    }\n  },\n  "
+              "\"formatted\": \"1970-01-01T00:00:01.000Z\"\n    }\n  },\n  "
               "\"owner\": {\n    \"first_name\": \"Osi\",\n    \"last_name\": "
               "\"Daro\"\n  }\n}")
           .ExpectBytes("f8f8f306546f796f7461efe803000000000000fa0500f3034f73690"
                        "000f3044461726f")
           .ExpectDebugString(
               "{\n  .car: {\n    .model: \"Toyota\",\n    .purchase_time: "
-              "absl::FromUnixMillis(1000 /* 1970-01-01T00:00:01+00:00 */),\n  "
+              "absl::FromUnixMillis(1000 /* 1970-01-01T00:00:01.000Z */),\n  "
               "},\n  .owner: {\n    .first_name: \"Osi\",\n    .last_name: "
               "\"Daro\",\n  },\n}")
           .AddCompatibleSchema<Empty>("Empty")
@@ -308,7 +308,7 @@ TEST(SoiagenTest, ReserializeEnum) {
       MakeReserializer(StatusEnum())
           .IsDefault()
           .ExpectDenseJson("0")
-          .ExpectReadableJson("\"UNKNOWN\"")
+          .ExpectReadableJson("\"?\"")
           .ExpectDebugString("soiagen::kUnknown")
           .ExpectBytes("00")
           .ExpectTypeDescriptorJson(
@@ -316,7 +316,7 @@ TEST(SoiagenTest, ReserializeEnum) {
               "\"simple_enum.soia:Status\"\n  },\n  \"records\": [\n    {\n    "
               "  \"kind\": \"enum\",\n      \"id\": "
               "\"simple_enum.soia:Status\",\n      \"fields\": [\n        {\n  "
-              "        \"name\": \"UNKNOWN\"\n        },\n        {\n          "
+              "        "
               "\"name\": \"OK\",\n          \"number\": 1\n        },\n        "
               "{\n          \"name\": \"error\",\n          \"type\": {\n      "
               "      \"kind\": \"primitive\",\n            \"value\": "
@@ -466,7 +466,7 @@ TEST(SoiagenTest, KeyedItems) {
               "\"value\": \"enums.soia:Weekday\"\n          },\n          "
               "\"number\": 5\n        },\n        {\n          \"name\": "
               "\"bytes\",\n          \"type\": {\n            \"kind\": "
-              "\"primitive\",\n            \"value\": \"string\"\n          "
+              "\"primitive\",\n            \"value\": \"bytes\"\n          "
               "},\n          \"number\": 6\n        },\n        {\n          "
               "\"name\": \"timestamp\",\n          \"type\": {\n            "
               "\"kind\": \"primitive\",\n            \"value\": "
@@ -478,8 +478,8 @@ TEST(SoiagenTest, KeyedItems) {
               "   \"kind\": \"primitive\",\n            \"value\": "
               "\"string\"\n          }\n        }\n      ]\n    },\n    {\n    "
               "  \"kind\": \"enum\",\n      \"id\": \"enums.soia:Weekday\",\n  "
-              "    \"fields\": [\n        {\n          \"name\": \"UNKNOWN\"\n "
-              "       },\n        {\n          \"name\": \"MONDAY\",\n         "
+              "    \"fields\": [\n        {\n          \"name\": \"MONDAY\",\n "
+              "        "
               " \"number\": 1\n        },\n        {\n          \"name\": "
               "\"TUESDAY\",\n          \"number\": 2\n        },\n        {\n  "
               "        \"name\": \"WEDNESDAY\",\n          \"number\": 3\n     "
@@ -609,8 +609,7 @@ TEST(SoiagenTest, IsRecord) {
 TEST(SoiagenTest, ForEachFieldOfEnum) {
   FieldNameCollector collector;
   soia::reflection::ForEachField<StatusEnum>(collector);
-  EXPECT_THAT(collector.field_names,
-              UnorderedElementsAre("OK", "UNKNOWN", "error"));
+  EXPECT_THAT(collector.field_names, UnorderedElementsAre("?", "OK", "error"));
 
   // Just to make sure we can pass an rvalue.
   soia::reflection::ForEachField<StatusEnum>(FieldNameCollector());

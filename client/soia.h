@@ -1,11 +1,11 @@
 // Soia client library
 
-#include <cstddef>
 #ifndef SOIA_SOIA_H_VERSION
-#define SOIA_SOIA_H_VERSION 20250403
+#define SOIA_SOIA_H_VERSION 20251107
 
 #include <algorithm>
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -1348,8 +1348,8 @@ struct Int32Adapter {
   static constexpr bool IsEnum() { return false; }
 };
 
-constexpr int64_t kMinSafeJavascriptInt = -9007199254740992;  // -(2 ^ 53)
-constexpr int64_t kMaxSafeJavascriptInt = 9007199254740992;   // 2 ^ 53
+constexpr int64_t kMinSafeJavascriptInt = -9007199254740991;  // -(2 ^ 53 - 1)
+constexpr int64_t kMaxSafeJavascriptInt = 9007199254740991;   // 2 ^ 53 - 1
 
 struct Int64Adapter {
   static bool IsDefault(int64_t input) { return !input; }
@@ -2212,6 +2212,12 @@ class DebugObjectWriter {
 
 std::pair<bool, int32_t> ParseEnumPrefix(ByteSource& source);
 
+enum class UnrecognizedFormat {
+  kUnknown,
+  kDenseJson,
+  kBytes,
+};
+
 class UnrecognizedValues {
  public:
   void ParseFrom(JsonTokenizer& tokenizer);
@@ -2225,6 +2231,7 @@ class UnrecognizedValues {
 };
 
 struct UnrecognizedFieldsData {
+  UnrecognizedFormat format = UnrecognizedFormat::kUnknown;
   uint32_t array_len = 0;
   UnrecognizedValues values;
 };
@@ -2237,7 +2244,9 @@ struct UnrecognizedFields {
 };
 
 struct UnrecognizedEnum {
+  UnrecognizedFormat format = UnrecognizedFormat::kUnknown;
   int32_t number = 0;
+  // Null if just a number with no value.
   std::shared_ptr<UnrecognizedValues> value;
 
   UnrecognizedValues& emplace_value() {
@@ -2245,8 +2254,8 @@ struct UnrecognizedEnum {
   }
 };
 
-void AppendUnrecognizedEnum(const UnrecognizedEnum& input, DenseJson& out);
-void AppendUnrecognizedEnum(const UnrecognizedEnum& input, ByteSink& out);
+void AppendUnrecognizedEnum(const UnrecognizedEnum* input, DenseJson& out);
+void AppendUnrecognizedEnum(const UnrecognizedEnum* input, ByteSink& out);
 
 void ParseUnrecognizedFields(JsonArrayReader& array_reader, size_t num_slots,
                              size_t num_slots_incl_removed,

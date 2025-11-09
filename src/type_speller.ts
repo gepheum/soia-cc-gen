@@ -77,8 +77,9 @@ export class TypeSpeller {
           case "timestamp":
             return "::absl::Time";
           case "string":
-          case "bytes":
             return "::std::string";
+          case "bytes":
+            return "::soia::ByteString";
         }
       }
     }

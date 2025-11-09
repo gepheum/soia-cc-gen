@@ -324,9 +324,10 @@ class CcLibFilesGenerator {
       source.anonymous.push("inline ::int32_t _GetArrayLength(");
       source.anonymous.push(`    ${constRefType} input,`);
       source.anonymous.push(
-        "    const std::shared_ptr<soia_internal::UnrecognizedFieldsData>& u) {",
+        "    const std::shared_ptr<soia_internal::UnrecognizedFieldsData>& u,",
       );
-      source.anonymous.push("  if (u != nullptr)");
+      source.anonymous.push("    soia_internal::UnrecognizedFormat format) {");
+      source.anonymous.push("  if (u != nullptr && u->format == format)");
       source.anonymous.push("    return u->array_len;");
       for (const field of [...fieldsByNumber].reverse()) {
         const { number, name } = field;
@@ -368,7 +369,7 @@ class CcLibFilesGenerator {
         "  const auto& unrecognized = input._unrecognized.data;",
       );
       source.internalMain.push(
-        "  const auto array_len = _GetArrayLength(input, unrecognized);",
+        "  const auto array_len = _GetArrayLength(input, unrecognized, soia_internal::UnrecognizedFormat::kDenseJson);",
       );
       source.internalMain.push("  if (array_len == 0) {");
       source.internalMain.push("    out.out += {'[', ']'};");
@@ -459,7 +460,7 @@ class CcLibFilesGenerator {
         "  const auto& unrecognized = input._unrecognized.data;",
       );
       source.internalMain.push(
-        "  const auto array_len = _GetArrayLength(input, unrecognized);",
+        "  const auto array_len = _GetArrayLength(input, unrecognized, soia_internal::UnrecognizedFormat::kBytes);",
       );
       source.internalMain.push("  if (array_len == 0) {");
       source.internalMain.push("    out.Push(246);");
@@ -1185,14 +1186,8 @@ class CcLibFilesGenerator {
         );
         if (isUnknownField) {
           source.internalMain.push(
-            "      if (input.value_._unrecognized != nullptr) {",
+            "      AppendUnrecognizedEnum(input.value_._unrecognized, out);",
           );
-          source.internalMain.push(
-            "        AppendUnrecognizedEnum(*input.value_._unrecognized, out);",
-          );
-          source.internalMain.push("      } else {");
-          source.internalMain.push("        out.out += '0';");
-          source.internalMain.push("      }");
         } else {
           source.internalMain.push(
             `      out.out += {${numberToCharLiterals(fieldNumber)}};`,
@@ -1313,14 +1308,8 @@ class CcLibFilesGenerator {
         );
         if (isUnknownField) {
           source.internalMain.push(
-            "      if (input.value_._unrecognized != nullptr) {",
+            "      AppendUnrecognizedEnum(input.value_._unrecognized, out);",
           );
-          source.internalMain.push(
-            "        AppendUnrecognizedEnum(*input.value_._unrecognized, out);",
-          );
-          source.internalMain.push("      } else {");
-          source.internalMain.push("        out.Push(0);");
-          source.internalMain.push("      }");
         } else {
           const intLiterals = bytesToIntLiterals([...encodeInt32(fieldNumber)]);
           source.internalMain.push(`      out.Push(${intLiterals});`);
@@ -1375,26 +1364,18 @@ class CcLibFilesGenerator {
         source.internalMain.push("          break;");
       }
       source.internalMain.push("        default:");
-      source.internalMain.push("          out = type(UnrecognizedEnum{i});");
+      source.internalMain.push(
+        "          if (tokenizer.keep_unrecognized_fields()) {",
+      );
+      source.internalMain.push(
+        "            out = type(UnrecognizedEnum{::soia_internal::UnrecognizedFormat::kDenseJson, i});",
+      );
+      source.internalMain.push("          }");
       source.internalMain.push("      }");
       source.internalMain.push("      tokenizer.Next();");
       source.internalMain.push("      break;");
       source.internalMain.push("    }");
       source.internalMain.push("    case JsonTokenType::kSignedInteger: {");
-      source.internalMain.push(
-        "      const int i = tokenizer.state().int_value;",
-      );
-      source.internalMain.push("      switch (i) {");
-      for (const field of constFields) {
-        const { fieldNumber, identifier } = field;
-        if (0 <= field.fieldNumber) continue;
-        source.internalMain.push(`        case ${fieldNumber}:`);
-        source.internalMain.push(`          out = ::soiagen::${identifier};`);
-        source.internalMain.push("          break:");
-      }
-      source.internalMain.push("        default:");
-      source.internalMain.push("          out = type(UnrecognizedEnum{i});");
-      source.internalMain.push("      }");
       source.internalMain.push("      tokenizer.Next();");
       source.internalMain.push("      break;");
       source.internalMain.push("    }");
@@ -1432,16 +1413,22 @@ class CcLibFilesGenerator {
         source.internalMain.push("          break;");
         source.internalMain.push("        }");
       }
-      source.internalMain.push(`        default: {`);
+      source.internalMain.push("        default: {");
       source.internalMain.push(
-        "          UnrecognizedEnum unrecognized{number};",
+        "          if (tokenizer.keep_unrecognized_fields()) {",
       );
       source.internalMain.push(
-        "          unrecognized.emplace_value().ParseFrom(tokenizer);",
+        "            UnrecognizedEnum unrecognized{::soia_internal::UnrecognizedFormat::kDenseJson, number};",
       );
       source.internalMain.push(
-        "          out = type(std::move(unrecognized));",
+        "            unrecognized.emplace_value().ParseFrom(tokenizer);",
       );
+      source.internalMain.push(
+        "            out = type(std::move(unrecognized));",
+      );
+      source.internalMain.push("          } else {");
+      source.internalMain.push("            SkipValue(tokenizer);");
+      source.internalMain.push("          }");
       source.internalMain.push("        }");
       source.internalMain.push("      }");
       source.internalMain.push("      parser.Finish();");
@@ -1495,12 +1482,20 @@ class CcLibFilesGenerator {
       }
       source.internalMain.push("      default: {");
       source.internalMain.push(
-        "        UnrecognizedEnum unrecognized{number};",
+        "        if (source.keep_unrecognized_fields) {",
       );
       source.internalMain.push(
-        "        unrecognized.emplace_value().ParseFrom(source);",
+        "          UnrecognizedEnum unrecognized{::soia_internal::UnrecognizedFormat::kBytes, number};",
       );
-      source.internalMain.push("        out = type(std::move(unrecognized));");
+      source.internalMain.push(
+        "          unrecognized.emplace_value().ParseFrom(source);",
+      );
+      source.internalMain.push(
+        "          out = type(std::move(unrecognized));",
+      );
+      source.internalMain.push("        } else {");
+      source.internalMain.push("          SkipValue(source);");
+      source.internalMain.push("        }");
       source.internalMain.push("      }");
       source.internalMain.push("    }");
       source.internalMain.push("  } else {");
@@ -1515,7 +1510,13 @@ class CcLibFilesGenerator {
         source.internalMain.push("        break;");
       }
       source.internalMain.push("      default: {");
-      source.internalMain.push("        out = type(UnrecognizedEnum{number});");
+      source.internalMain.push(
+        "        if (source.keep_unrecognized_fields) {",
+      );
+      source.internalMain.push(
+        "          out = type(UnrecognizedEnum{::soia_internal::UnrecognizedFormat::kBytes, number});",
+      );
+      source.internalMain.push("        }");
       source.internalMain.push("      }");
       source.internalMain.push("    }");
       source.internalMain.push("  }");
@@ -1554,6 +1555,9 @@ class CcLibFilesGenerator {
       source.internalMain.push(`      "${recordId}",`);
       source.internalMain.push("      {");
       for (const field of constFields) {
+        if (field.isUnknownField) {
+          continue;
+        }
         source.internalMain.push("          {");
         source.internalMain.push(`              "${field.fieldName}",`);
         source.internalMain.push(`              absl::nullopt,`);

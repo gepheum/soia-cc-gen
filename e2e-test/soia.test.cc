@@ -644,24 +644,24 @@ TEST(SoialibTest, ReserializeInt64) {
                   .ExpectBytes("ee0000000001000000")
                   .Check(),
               IsOk());
-  EXPECT_THAT(MakeReserializer<int64_t>(-9007199254740992)
-                  .ExpectDenseJson("-9007199254740992")
-                  .ExpectReadableJson("-9007199254740992")
+  EXPECT_THAT(MakeReserializer<int64_t>(-9007199254740991)
+                  .ExpectDenseJson("-9007199254740991")
+                  .ExpectReadableJson("-9007199254740991")
                   .Check(),
               IsOk());
-  EXPECT_THAT(MakeReserializer<int64_t>(-9007199254740993)
-                  .ExpectDenseJson("\"-9007199254740993\"")
-                  .ExpectReadableJson("\"-9007199254740993\"")
+  EXPECT_THAT(MakeReserializer<int64_t>(-9007199254740992)
+                  .ExpectDenseJson("\"-9007199254740992\"")
+                  .ExpectReadableJson("\"-9007199254740992\"")
+                  .Check(),
+              IsOk());
+  EXPECT_THAT(MakeReserializer<int64_t>(9007199254740991)
+                  .ExpectDenseJson("9007199254740991")
+                  .ExpectReadableJson("9007199254740991")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer<int64_t>(9007199254740992)
-                  .ExpectDenseJson("9007199254740992")
-                  .ExpectReadableJson("9007199254740992")
-                  .Check(),
-              IsOk());
-  EXPECT_THAT(MakeReserializer<int64_t>(9007199254740993)
-                  .ExpectDenseJson("\"9007199254740993\"")
-                  .ExpectReadableJson("\"9007199254740993\"")
+                  .ExpectDenseJson("\"9007199254740992\"")
+                  .ExpectReadableJson("\"9007199254740992\"")
                   .Check(),
               IsOk());
 }
@@ -702,14 +702,14 @@ TEST(SoialibTest, ReserializeUint64) {
                   .ExpectBytes("ea0000000001000000")
                   .Check(),
               IsOk());
-  EXPECT_THAT(MakeReserializer<uint64_t>(9007199254740992)
-                  .ExpectDenseJson("9007199254740992")
-                  .ExpectReadableJson("9007199254740992")
+  EXPECT_THAT(MakeReserializer<uint64_t>(9007199254740991)
+                  .ExpectDenseJson("9007199254740991")
+                  .ExpectReadableJson("9007199254740991")
                   .Check(),
               IsOk());
-  EXPECT_THAT(MakeReserializer<uint64_t>(9007199254740993)
-                  .ExpectDenseJson("\"9007199254740993\"")
-                  .ExpectReadableJson("\"9007199254740993\"")
+  EXPECT_THAT(MakeReserializer<uint64_t>(9007199254740992)
+                  .ExpectDenseJson("\"9007199254740992\"")
+                  .ExpectReadableJson("\"9007199254740992\"")
                   .Check(),
               IsOk());
 }
@@ -857,10 +857,10 @@ TEST(SoialibTest, ReserializeTimestamp) {
       MakeReserializer(absl::UnixEpoch())
           .IsDefault()
           .ExpectReadableJson("{\n  \"unix_millis\": 0,\n  \"formatted\": "
-                              "\"1970-01-01T00:00:00+00:00\"\n}")
+                              "\"1970-01-01T00:00:00.000Z\"\n}")
           .ExpectDenseJson("0")
           .ExpectDebugString(
-              "absl::FromUnixMillis(0 /* 1970-01-01T00:00:00+00:00 */)")
+              "absl::FromUnixMillis(0 /* 1970-01-01T00:00:00.000Z */)")
           .ExpectBytes("00")
           .ExpectTypeDescriptorJson(
               "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    \"value\": "
@@ -870,10 +870,10 @@ TEST(SoialibTest, ReserializeTimestamp) {
   EXPECT_THAT(MakeReserializer(absl::FromUnixMillis(1738619881001))
                   .ExpectReadableJson(
                       "{\n  \"unix_millis\": 1738619881001,\n  \"formatted\": "
-                      "\"2025-02-03T21:58:01.001+00:00\"\n}")
+                      "\"2025-02-03T21:58:01.001Z\"\n}")
                   .ExpectDenseJson("1738619881001")
                   .ExpectDebugString("absl::FromUnixMillis(1738619881001 /* "
-                                     "2025-02-03T21:58:01.001+00:00 */)")
+                                     "2025-02-03T21:58:01.001Z */)")
                   .ExpectBytes("ef2906d2cd94010000")
                   .Check(),
               IsOk());
@@ -881,10 +881,10 @@ TEST(SoialibTest, ReserializeTimestamp) {
       MakeReserializer(absl::FromUnixMillis(-8640000000000000))
           .ExpectReadableJson(
               "{\n  \"unix_millis\": -8640000000000000,\n  "
-              "\"formatted\": \"-271821-04-20T00:00:00+00:00\"\n}")
+              "\"formatted\": \"-271821-04-20T00:00:00.000Z\"\n}")
           .ExpectDenseJson("-8640000000000000")
           .ExpectDebugString("absl::FromUnixMillis(-8640000000000000 "
-                             "/* -271821-04-20T00:00:00+00:00 */)")
+                             "/* -271821-04-20T00:00:00.000Z */)")
           .ExpectBytes("ef0000243df74de1ff")
           .AddAlternativeJson("-8640000000000001")
           .AddAlternativeJson("{\n  \"unix_millis\": -8640000000000001}")
@@ -899,10 +899,10 @@ TEST(SoialibTest, ReserializeTimestamp) {
   EXPECT_THAT(MakeReserializer(absl::FromUnixMillis(8640000000000000))
                   .ExpectReadableJson(
                       "{\n  \"unix_millis\": 8640000000000000,\n  "
-                      "\"formatted\": \"275760-09-13T00:00:00+00:00\"\n}")
+                      "\"formatted\": \"275760-09-13T00:00:00.000Z\"\n}")
                   .ExpectDenseJson("8640000000000000")
                   .ExpectDebugString("absl::FromUnixMillis(8640000000000000 /* "
-                                     "275760-09-13T00:00:00+00:00 */)")
+                                     "275760-09-13T00:00:00.000Z */)")
                   .ExpectBytes("ef0000dcc208b21e00")
                   .AddAlternativeJson("8640000000000001")
                   .AddAlternativeJson("{\n  \"unix_millis\": 8640000000000001}")

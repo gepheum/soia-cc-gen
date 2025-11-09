@@ -1394,14 +1394,17 @@ void TimestampAdapter::Append(absl::Time input, ReadableJson& out) {
   absl::StrAppend(
       &out.out, "{", *out.new_line, "  \"unix_millis\": ", unix_millis, ",",
       *out.new_line, "  \"formatted\": \"",
-      absl::FormatTime(input, absl::UTCTimeZone()), "\"", *out.new_line, "}");
+      absl::FormatTime("%Y-%m-%dT%H:%M:%E3SZ", input, absl::UTCTimeZone()),
+      "\"", *out.new_line, "}");
 }
 
 void TimestampAdapter::Append(absl::Time input, DebugString& out) {
   const int64_t unix_millis = absl::ToUnixMillis(input);  // Don't clamp
   input = absl::FromUnixMillis(unix_millis);
-  absl::StrAppend(&out.out, "absl::FromUnixMillis(", unix_millis, " /* ",
-                  absl::FormatTime(input, absl::UTCTimeZone()), " */)");
+  absl::StrAppend(
+      &out.out, "absl::FromUnixMillis(", unix_millis, " /* ",
+      absl::FormatTime("%Y-%m-%dT%H:%M:%E3SZ", input, absl::UTCTimeZone()),
+      " */)");
 }
 
 void TimestampAdapter::Append(absl::Time input, ByteSink& out) {
@@ -2409,28 +2412,38 @@ void UnrecognizedValues::AppendTo(ByteSink& out) const {
   }
 }
 
-void AppendUnrecognizedEnum(const UnrecognizedEnum& input, DenseJson& out) {
-  if (input.value == nullptr) {
-    absl::StrAppend(&out.out, input.number);
+void AppendUnrecognizedEnum(const UnrecognizedEnum* input_Nullable,
+                            DenseJson& out) {
+  if (input_Nullable == nullptr ||
+      input_Nullable->format != UnrecognizedFormat::kDenseJson) {
+    out.out += '0';
+  } else if (input_Nullable->value == nullptr) {
+    absl::StrAppend(&out.out, input_Nullable->number);
   } else {
-    absl::StrAppend(&out.out, "[", input.number, ",");
-    input.value->AppendTo(out);
+    absl::StrAppend(&out.out, "[", input_Nullable->number, ",");
+    input_Nullable->value->AppendTo(out);
     out.out += ']';
   }
 }
 
-void AppendUnrecognizedEnum(const UnrecognizedEnum& input, ByteSink& out) {
-  const int32_t number = input.number;
-  if (input.value == nullptr) {
-    Int32Adapter::Append(number, out);
+void AppendUnrecognizedEnum(const UnrecognizedEnum* input_Nullable,
+                            ByteSink& out) {
+  if (input_Nullable == nullptr ||
+      input_Nullable->format != UnrecognizedFormat::kBytes) {
+    out.Push(0);
   } else {
-    if (1 <= number && number <= 4) {
-      out.Push(number + 250);
-    } else {
-      out.Push(248);
+    const int32_t number = input_Nullable->number;
+    if (input_Nullable->value == nullptr) {
       Int32Adapter::Append(number, out);
+    } else {
+      if (1 <= number && number <= 4) {
+        out.Push(number + 250);
+      } else {
+        out.Push(248);
+        Int32Adapter::Append(number, out);
+      }
+      input_Nullable->value->AppendTo(out);
     }
-    input.value->AppendTo(out);
   }
 }
 
@@ -2446,10 +2459,11 @@ void ParseUnrecognizedFields(JsonArrayReader& array_reader, size_t num_slots,
     }
 
     out = std::make_shared<UnrecognizedFieldsData>();
+    out->format = UnrecognizedFormat::kDenseJson;
     out->array_len = num_slots_incl_removed;
     do {
       out->values.ParseFrom(tokenizer);
-      ++out->array_len;
+      ++(out->array_len);
     } while (array_reader.NextElement());
   } else {
     do {
@@ -2466,8 +2480,9 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
     SkipValues(source, num_trailing_removed);
 
     out = std::make_shared<UnrecognizedFieldsData>();
+    out->format = UnrecognizedFormat::kBytes;
     out->array_len = array_len;
-    for (size_t i = num_trailing_removed; i < array_len; ++i) {
+    for (size_t i = num_slots_incl_removed; i < array_len; ++i) {
       if (source.error) return;
       out->values.ParseFrom(source);
     }
