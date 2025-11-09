@@ -2412,28 +2412,24 @@ void UnrecognizedValues::AppendTo(ByteSink& out) const {
   }
 }
 
-void AppendUnrecognizedEnum(const UnrecognizedEnum* input_Nullable,
-                            DenseJson& out) {
-  if (input_Nullable == nullptr ||
-      input_Nullable->format != UnrecognizedFormat::kDenseJson) {
+void AppendUnrecognizedEnum(const UnrecognizedEnum* input, DenseJson& out) {
+  if (input == nullptr || input->format != UnrecognizedFormat::kDenseJson) {
     out.out += '0';
-  } else if (input_Nullable->value == nullptr) {
-    absl::StrAppend(&out.out, input_Nullable->number);
+  } else if (input->value == nullptr) {
+    absl::StrAppend(&out.out, input->number);
   } else {
-    absl::StrAppend(&out.out, "[", input_Nullable->number, ",");
-    input_Nullable->value->AppendTo(out);
+    absl::StrAppend(&out.out, "[", input->number, ",");
+    input->value->AppendTo(out);
     out.out += ']';
   }
 }
 
-void AppendUnrecognizedEnum(const UnrecognizedEnum* input_Nullable,
-                            ByteSink& out) {
-  if (input_Nullable == nullptr ||
-      input_Nullable->format != UnrecognizedFormat::kBytes) {
+void AppendUnrecognizedEnum(const UnrecognizedEnum* input, ByteSink& out) {
+  if (input == nullptr || input->format != UnrecognizedFormat::kBytes) {
     out.Push(0);
   } else {
-    const int32_t number = input_Nullable->number;
-    if (input_Nullable->value == nullptr) {
+    const int32_t number = input->number;
+    if (input->value == nullptr) {
       Int32Adapter::Append(number, out);
     } else {
       if (1 <= number && number <= 4) {
@@ -2442,7 +2438,7 @@ void AppendUnrecognizedEnum(const UnrecognizedEnum* input_Nullable,
         out.Push(248);
         Int32Adapter::Append(number, out);
       }
-      input_Nullable->value->AppendTo(out);
+      input->value->AppendTo(out);
     }
   }
 }

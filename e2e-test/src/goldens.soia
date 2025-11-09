@@ -148,10 +148,6 @@ const UNIT_TESTS: [UnitTest] = [
           },
           {
             kind: "literal",
-            value: '"-Infinity"',
-          },
-          {
-            kind: "literal",
             value: '"1"',
           },
         ],

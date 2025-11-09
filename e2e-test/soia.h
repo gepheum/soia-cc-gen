@@ -2254,8 +2254,10 @@ struct UnrecognizedEnum {
   }
 };
 
-void AppendUnrecognizedEnum(const UnrecognizedEnum* input, DenseJson& out);
-void AppendUnrecognizedEnum(const UnrecognizedEnum* input, ByteSink& out);
+void AppendUnrecognizedEnum(const UnrecognizedEnum* absl_nullable input,
+                            DenseJson& out);
+void AppendUnrecognizedEnum(const UnrecognizedEnum* absl_nullable input,
+                            ByteSink& out);
 
 void ParseUnrecognizedFields(JsonArrayReader& array_reader, size_t num_slots,
                              size_t num_slots_incl_removed,

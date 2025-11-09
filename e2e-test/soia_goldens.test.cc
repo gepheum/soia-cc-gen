@@ -1,8 +1,4 @@
-// TODO: put back logic which checks also the round-trips
 // TODO: put back logic which checks the skip value...
-// TODO: support the alternative forms
-// TODO: make sure that all alternative forms can be parsed back correctly (incl
-// in other languages?)
 
 #include <gtest/gtest.h>
 
@@ -14,6 +10,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/optional.h"
 #include "soia.h"
@@ -39,6 +36,8 @@ class TypedValue {
       const = 0;
   virtual absl::StatusOr<std::unique_ptr<TypedValue>> RoundTripBytes()
       const = 0;
+
+  virtual void CheckParse(absl::string_view bytes_or_json) const = 0;
 };
 
 template <typename T>
@@ -79,6 +78,15 @@ class TypedValueImpl : public TypedValue {
       return parse_result.status();
     }
     return std::make_unique<TypedValueImpl<T>>(*parse_result);
+  }
+
+  void CheckParse(absl::string_view bytes_or_json) const override {
+    const absl::StatusOr<T> parse_result = soia::Parse<T>(bytes_or_json);
+    EXPECT_EQ(parse_result.status(), absl::OkStatus());
+    if (!parse_result.ok()) {
+      return;
+    }
+    EXPECT_EQ(*parse_result, value_);
   }
 
  private:
@@ -446,6 +454,35 @@ void ExecuteReserializeValue(const Assertion::ReserializeValue& assertion) {
         << "Readable JSON mismatch. Actual: " << actual_readable_json
         << ", Expected one of: " << assertion.expected_readable_json.size()
         << " values";
+  }
+
+  // Check deserialization
+  {
+    for (const auto& expected_json : assertion.expected_dense_json) {
+      (*typed_value)->CheckParse(expected_json);
+    }
+    for (const auto& expected_json : assertion.expected_readable_json) {
+      (*typed_value)->CheckParse(expected_json);
+    }
+    for (const auto& expected_bytes : assertion.expected_bytes) {
+      (*typed_value)->CheckParse(expected_bytes.as_string());
+    }
+    for (const auto& alternative_json : assertion.alternative_jsons) {
+      const absl::StatusOr<std::string> json =
+          EvalStringExpression(alternative_json);
+      EXPECT_EQ(json.status(), absl::OkStatus());
+      if (json.ok()) {
+        (*typed_value)->CheckParse(*json);
+      }
+    }
+    for (const auto& alternative_bytes : assertion.alternative_bytes) {
+      const absl::StatusOr<soia::ByteString> bytes =
+          EvalBytesExpression(alternative_bytes);
+      EXPECT_EQ(bytes.status(), absl::OkStatus());
+      if (bytes.ok()) {
+        (*typed_value)->CheckParse(bytes->as_string());
+      }
+    }
   }
 
   // Check bytes serialization
