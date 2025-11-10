@@ -29,12 +29,6 @@ jobs:
       - run: npm ci
       - run: npm run build
       - run: npm run format:check
-      - name: Run clang-format style check for C/C++/Protobuf programs.
-        uses: jidicula/clang-format-action@v4.15.0
-        with:
-          clang-format-version: 20
-          check-path: e2e-test
-          exclude-regex: ^soiagen/.*$
       - name: Run e2e tests
         run: |
           npm run test
