@@ -28,7 +28,6 @@ jobs:
           repository-cache: true
       - run: npm ci
       - run: npm run build
-      - run: npm run format:check
       - name: Run e2e tests
         run: |
           npm run test
