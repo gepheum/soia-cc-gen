@@ -1,5 +1,3 @@
-// TODO: put back logic which checks the skip value...
-
 #include <gtest/gtest.h>
 
 #include <memory>
@@ -498,6 +496,20 @@ void ExecuteReserializeValue(const Assertion::ReserializeValue& assertion) {
     EXPECT_TRUE(bytes_matched)
         << "Bytes serialization mismatch; actual: "
         << absl::BytesToHexString(actual_bytes.as_string());
+  }
+
+  // Make sure the encoded value can be skipped.
+  for (const auto& expected_bytes : assertion.expected_bytes) {
+    const soia::ByteString bytes = soia::ByteString(
+        absl::StrCat("soia\xF8", expected_bytes.as_string().substr(4), "\x01"));
+    const absl::StatusOr<soiagen_goldens::Point> point =
+        soia::Parse<soiagen_goldens::Point>(bytes.as_string());
+    EXPECT_EQ(point.status(), absl::OkStatus());
+    if (point.ok()) {
+      EXPECT_EQ(point->x, 1)
+          << "Failed to skip value; input: "
+          << absl::BytesToHexString(expected_bytes.as_string());
+    }
   }
 }
 
