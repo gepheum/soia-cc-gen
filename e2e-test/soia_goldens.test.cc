@@ -653,7 +653,7 @@ TEST(SoiaGoldensTest, AllTests) {
         ExecuteStringIn(assertion.as_string_in());
         break;
 
-      default:
+      case Assertion::kind_type::kConstUnknown:
         FAIL() << "Unknown assertion kind";
     }
   }

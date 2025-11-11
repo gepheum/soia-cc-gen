@@ -704,8 +704,10 @@ inline void ParseJsonNumber(JsonTokenizer& tokenizer, number& out) {
       break;
     case JsonTokenType::kString: {
       const std::string& string_value = tokenizer.state().string_value;
-      tokenizer.Next();
-      if (TryParseSpecialNumber(string_value, out)) break;
+      if (TryParseSpecialNumber(string_value, out)) {
+        tokenizer.Next();
+        break;
+      }
       if (false) {
         // To remove the "unused function" warnings.
         (void)TryParseNumber<long>;
@@ -717,6 +719,7 @@ inline void ParseJsonNumber(JsonTokenizer& tokenizer, number& out) {
       if (!status.ok()) {
         tokenizer.mutable_state().status = status;
       }
+      tokenizer.Next();
       break;
     }
     default:
@@ -927,16 +930,6 @@ inline void ParseNumberWithWire(uint8_t wire, ByteSource& source, number& out) {
         return source.RaiseError();
       }
       out = static_cast<number>(u.f);
-      break;
-    }
-    case 11: {
-      // 243
-      --source.pos;
-      std::string string_value;
-      StringAdapter::Parse(source, string_value);
-      if (TryParseSpecialNumber(string_value, out)) break;
-      const absl::Status status = TryParseNumber(string_value.c_str(), out);
-      if (!status.ok()) source.RaiseError();
       break;
     }
     default: {
@@ -1607,25 +1600,11 @@ void BytesAdapter::Parse(JsonTokenizer& tokenizer, soia::ByteString& out) {
 
 void BytesAdapter::Parse(ByteSource& source, soia::ByteString& out) {
   const uint8_t wire = source.ReadWire();
-  switch (static_cast<uint8_t>(wire - 242)) {
+  switch (wire) {
     case 0:
-    case 2:
-      // 242, 244
+    case 244:
       break;
-    case 1: {
-      // 243
-      --source.pos;
-      std::string base64_string;
-      StringAdapter::Parse(source, base64_string);
-      std::string bytes;
-      if (!absl::Base64Unescape(base64_string, &bytes)) {
-        return source.RaiseError();
-      }
-      out = bytes;
-      break;
-    }
-    case 3: {
-      // 245
+    case 245: {
       uint32_t length = 0;
       ParseNumber(source, length);
       if (source.num_bytes_left() < length) {
@@ -1637,9 +1616,7 @@ void BytesAdapter::Parse(ByteSource& source, soia::ByteString& out) {
       break;
     }
     default: {
-      if (wire != 0) {
-        source.RaiseError();
-      }
+      source.RaiseError();
     }
   }
 }

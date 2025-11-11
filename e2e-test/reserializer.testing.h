@@ -102,29 +102,6 @@ struct ReserializerUtils {
     return dense_json.out;
   }
 
-  static absl::StatusOr<std::string> DenseJsonToBytes(
-      absl::string_view dense_json) {
-    // Copy to a non-NULL-terminated vector.
-    std::vector<char> dense_json_chars(dense_json.begin(), dense_json.end());
-    soia_internal::JsonTokenizer tokenizer(
-        dense_json_chars.data(), dense_json_chars.data() + dense_json.length(),
-        soia::UnrecognizedFieldsPolicy::kKeep);
-    tokenizer.Next();
-    soia_internal::UnrecognizedValues unrecognized_value;
-    unrecognized_value.ParseFrom(tokenizer);
-    if (!tokenizer.state().status.ok()) {
-      return tokenizer.state().status;
-    }
-    if (tokenizer.state().token_type != soia_internal::JsonTokenType::kStrEnd) {
-      return absl::UnknownError(
-          "tokenizer.state().token_type != JsonTokenType::kStrEnd");
-    }
-    soia_internal::ByteSink byte_sink;
-    byte_sink.Push('s', 'o', 'i', 'a');
-    unrecognized_value.AppendTo(byte_sink);
-    return std::move(byte_sink).ToByteString().as_string();
-  }
-
   static void CheckJsonValueIsSkippable(absl::string_view json,
                                         ErrorSink& errors) {
     // Copy to a non-NULL-terminated vector.
@@ -358,33 +335,6 @@ class Reserializer {
 
     reserializer::ReserializerUtils::CheckJsonValueIsSkippable(
         actual_dense_json, errors);
-
-    const absl::StatusOr<std::string> bytes =
-        reserializer::ReserializerUtils::DenseJsonToBytes(actual_dense_json);
-    if (!bytes.ok()) {
-      errors.Push("DenseJsonToBytes() returned an error",
-                  {{"error", bytes.status().ToString()}});
-      return;
-    }
-
-    reserialized = soia::Parse<T>(*bytes);
-    if (!reserialized.ok()) {
-      errors.Push(
-          "Parse(DenseJsonToBytes(ToDenseJson())) returned an error",
-          {{"error", reserialized.status().ToString()},
-           {"json", actual_dense_json},
-           {"bytes", reserializer::ReserializerUtils::BytesToHex(*bytes)}});
-      return;
-    }
-
-    if (!identity_(*reserialized)) {
-      errors.Push(
-          "Parse(DenseJsonToBytes(ToDenseJson())) doesn't match",
-          {{"expected", soia_internal::ToDebugString(subject_)},
-           {"actual", soia_internal::ToDebugString(*reserialized)},
-           {"json", actual_dense_json},
-           {"bytes", reserializer::ReserializerUtils::BytesToHex(*bytes)}});
-    }
   }
 
   void CheckReadableJson(reserializer::ErrorSink& errors) const {

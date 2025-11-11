@@ -840,8 +840,10 @@ class CcLibFilesGenerator {
       header.mainBottom.push(
         `inline bool ${className}::is_${fieldName}() const {`,
       );
-      header.mainBottom.push(`  return kind_ == kind_type::${kindEnumerator};`),
-        header.mainBottom.push("}");
+      (header.mainBottom.push(
+        `  return kind_ == kind_type::${kindEnumerator};`,
+      ),
+        header.mainBottom.push("}"));
       header.mainBottom.push("");
       header.mainBottom.push(
         `inline const ${valueType}& ${className}::as_${fieldName}() const {`,
