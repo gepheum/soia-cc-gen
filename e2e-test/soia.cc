@@ -1769,7 +1769,7 @@ void ReflectionArrayTypeAdapter::Append(
     const soia::reflection::ArrayType& input, ReadableJson& out) {
   JsonObjectWriter(&out)
       .Write("item", input.item)
-      .Write("key_chain", input.key_chain);
+      .Write("key_extractor", input.key_extractor);
 }
 
 void ReflectionArrayTypeAdapter::Parse(JsonTokenizer& tokenizer,
@@ -1778,7 +1778,8 @@ void ReflectionArrayTypeAdapter::Parse(JsonTokenizer& tokenizer,
     static const auto* kParser =
         (new StructJsonObjectParser<soia::reflection::ArrayType>())
             ->AddField("item", &soia::reflection::ArrayType::item)
-            ->AddField("key_chain", &soia::reflection::ArrayType::key_chain);
+            ->AddField("key_extractor",
+                       &soia::reflection::ArrayType::key_extractor);
     kParser->Parse(tokenizer, out);
     return;
   }
@@ -1821,8 +1822,8 @@ void ReflectionFieldAdapter::Append(const soia::reflection::Field& input,
                                     ReadableJson& out) {
   JsonObjectWriter(&out)
       .Write("name", input.name)
-      .Write("type", input.type)
-      .Write("number", input.number);
+      .WriteEvenIfDefault("number", input.number)
+      .Write("type", input.type);
 }
 
 void ReflectionFieldAdapter::Parse(JsonTokenizer& tokenizer,
@@ -1831,8 +1832,8 @@ void ReflectionFieldAdapter::Parse(JsonTokenizer& tokenizer,
     static const auto* kParser =
         (new StructJsonObjectParser<soia::reflection::Field>())
             ->AddField("name", &soia::reflection::Field::name)
-            ->AddField("type", &soia::reflection::Field::type)
-            ->AddField("number", &soia::reflection::Field::number);
+            ->AddField("number", &soia::reflection::Field::number)
+            ->AddField("type", &soia::reflection::Field::type);
     kParser->Parse(tokenizer, out);
     return;
   }
@@ -1845,7 +1846,7 @@ void ReflectionRecordAdapter::Append(const soia::reflection::Record& input,
       .Write("kind", input.kind)
       .Write("id", input.id)
       .Write("fields", input.fields)
-      .Write("removed_fields", input.removed_fields);
+      .Write("removed_numbers", input.removed_numbers);
 }
 
 void ReflectionRecordAdapter::Parse(JsonTokenizer& tokenizer,
@@ -1856,8 +1857,8 @@ void ReflectionRecordAdapter::Parse(JsonTokenizer& tokenizer,
             ->AddField("kind", &soia::reflection::Record::kind)
             ->AddField("id", &soia::reflection::Record::id)
             ->AddField("fields", &soia::reflection::Record::fields)
-            ->AddField("removed_fields",
-                       &soia::reflection::Record::removed_fields);
+            ->AddField("removed_numbers",
+                       &soia::reflection::Record::removed_numbers);
     kParser->Parse(tokenizer, out);
     return;
   }
@@ -1868,7 +1869,7 @@ void ReflectionTypeDescriptorAdapter::Append(
     const soia::reflection::TypeDescriptor& input, ReadableJson& out) {
   JsonObjectWriter(&out)
       .Write("type", input.type)
-      .Write("records", input.records);
+      .WriteEvenIfDefault("records", input.records);
 }
 
 void ReflectionTypeDescriptorAdapter::Parse(

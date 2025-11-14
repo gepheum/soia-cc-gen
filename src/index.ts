@@ -645,10 +645,10 @@ class CcLibFilesGenerator {
         });
         source.internalMain.push("          {");
         source.internalMain.push(`              "${field.name.text}",`);
+        source.internalMain.push(`              ${field.number},`);
         source.internalMain.push(
           `              soia_internal::GetType<${ccType}>(),`,
         );
-        source.internalMain.push(`              ${field.number},`);
         source.internalMain.push("          },");
       }
       source.internalMain.push("      },");
@@ -1562,18 +1562,18 @@ class CcLibFilesGenerator {
         }
         source.internalMain.push("          {");
         source.internalMain.push(`              "${field.fieldName}",`);
-        source.internalMain.push(`              absl::nullopt,`);
         source.internalMain.push(`              ${field.fieldNumber},`);
+        source.internalMain.push(`              absl::nullopt,`);
         source.internalMain.push("          },");
       }
       for (const field of valueFields) {
         const { fieldName, fieldNumber, valueTypeWithNamespace } = field;
         source.internalMain.push("          {");
         source.internalMain.push(`              "${fieldName}",`);
+        source.internalMain.push(`              ${fieldNumber},`);
         source.internalMain.push(
           `              soia_internal::GetType<${valueTypeWithNamespace}>(),`,
         );
-        source.internalMain.push(`              ${fieldNumber},`);
         source.internalMain.push("          },");
       }
       source.internalMain.push("      },");

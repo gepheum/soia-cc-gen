@@ -36,6 +36,8 @@ class TypedValue {
       const = 0;
 
   virtual void CheckParse(absl::string_view bytes_or_json) const = 0;
+
+  virtual const soia::reflection::TypeDescriptor& type_descriptor() const = 0;
 };
 
 template <typename T>
@@ -87,6 +89,10 @@ class TypedValueImpl : public TypedValue {
     EXPECT_EQ(*parse_result, value_);
   }
 
+  const soia::reflection::TypeDescriptor& type_descriptor() const override {
+    return soia::reflection::GetTypeDescriptor<T>();
+  }
+
  private:
   T value_;
 };
@@ -136,6 +142,9 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
     case soiagen_goldens::TypedValue::kind_type::kValMyEnum:
       return std::make_unique<TypedValueImpl<soiagen_goldens::MyEnum>>(
           typed_value.as_my_enum());
+    case soiagen_goldens::TypedValue::kind_type::kValKeyedArrays:
+      return std::make_unique<TypedValueImpl<soiagen_goldens::KeyedArrays>>(
+          typed_value.as_keyed_arrays());
     case soiagen_goldens::TypedValue::kind_type::kValRoundTripDenseJson: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> other =
           EvalTypedValue(typed_value.as_round_trip_dense_json());
@@ -509,6 +518,22 @@ void ExecuteReserializeValue(const Assertion::ReserializeValue& assertion) {
       EXPECT_EQ(point->x, 1)
           << "Failed to skip value; input: "
           << absl::BytesToHexString(expected_bytes.as_string());
+    }
+  }
+
+  // Check the type descriptor
+  if (assertion.expected_type_descriptor.has_value()) {
+    const soia::reflection::TypeDescriptor& actual_type_descriptor =
+        (*typed_value)->type_descriptor();
+    EXPECT_EQ(actual_type_descriptor.AsJson(),
+              *assertion.expected_type_descriptor);
+    const absl::StatusOr<soia::reflection::TypeDescriptor>
+        parsed_type_descriptor = soia::reflection::TypeDescriptor::FromJson(
+            *assertion.expected_type_descriptor);
+    EXPECT_EQ(parsed_type_descriptor.status(), absl::OkStatus());
+    if (parsed_type_descriptor.ok()) {
+      EXPECT_EQ(parsed_type_descriptor->AsJson(),
+                *assertion.expected_type_descriptor);
     }
   }
 }

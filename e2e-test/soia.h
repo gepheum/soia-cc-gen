@@ -30,6 +30,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/optional.h"
@@ -783,7 +784,7 @@ struct OptionalType {
 
 struct ArrayType {
   soia::rec<Type> item;
-  std::vector<std::string> key_chain;
+  std::string key_extractor;
 };
 
 struct RecordType {
@@ -797,10 +798,10 @@ enum class RecordKind {
 
 struct Field {
   std::string name;
+  int number{};
   // Can only be nullopt if the record is an enum and the field is a constant
   // field.
   absl::optional<Type> type;
-  int number{};
 };
 
 struct get_name {
@@ -812,7 +813,7 @@ struct Record {
   RecordKind kind{};
   std::string id;
   keyed_items<Field, get_name> fields;
-  std::vector<int> removed_fields;
+  std::vector<int> removed_numbers;
 };
 
 struct get_id {
@@ -1926,7 +1927,7 @@ struct ArrayAdapter {
     std::vector<std::string> key_chain;
     MakeKeyChain<GetKey>(key_chain);
     return soia::reflection::ArrayType{soia_internal::GetType<T>(),
-                                       std::move(key_chain)};
+                                       absl::StrJoin(key_chain, ".")};
   }
 
   template <typename T>
@@ -2026,19 +2027,26 @@ class JsonObjectWriter {
   template <typename T>
   JsonObjectWriter& Write(const char* absl_nonnull field_name, const T& value) {
     if (!TypeAdapter<T>::IsDefault(value)) {
-      if (has_content_) {
-        out_.out += ',';
-        out_.out += *out_.new_line;
-      } else {
-        out_.out += "{";
-        out_.out += out_.new_line.Indent();
-        has_content_ = true;
-      }
-      out_.out += '"';
-      out_.out += field_name;
-      out_.out += "\": ";
-      TypeAdapter<T>::Append(value, out_);
+      WriteEvenIfDefault(field_name, value);
     }
+    return *this;
+  }
+
+  template <typename T>
+  JsonObjectWriter& WriteEvenIfDefault(const char* absl_nonnull field_name,
+                                       const T& value) {
+    if (has_content_) {
+      out_.out += ',';
+      out_.out += *out_.new_line;
+    } else {
+      out_.out += "{";
+      out_.out += out_.new_line.Indent();
+      has_content_ = true;
+    }
+    out_.out += '"';
+    out_.out += field_name;
+    out_.out += "\": ";
+    TypeAdapter<T>::Append(value, out_);
     return *this;
   }
 

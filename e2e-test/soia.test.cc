@@ -526,7 +526,7 @@ TEST(SoialibTest, ReserializeBool) {
                   .AddAlternativeBytes("f10000000000000000")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"bool\"\n  }\n}")
+                      "\"value\": \"bool\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer(true)
@@ -549,7 +549,7 @@ TEST(SoialibTest, ReserializeInt32) {
                   .ExpectBytes("00")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"int32\"\n  }\n}")
+                      "\"value\": \"int32\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer<int32_t>(10)
@@ -595,7 +595,7 @@ TEST(SoialibTest, ReserializeInt64) {
                   .ExpectBytes("00")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"int64\"\n  }\n}")
+                      "\"value\": \"int64\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer<int64_t>(10)
@@ -675,7 +675,7 @@ TEST(SoialibTest, ReserializeUint64) {
                   .ExpectBytes("00")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"uint64\"\n  }\n}")
+                      "\"value\": \"uint64\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer<uint64_t>(10)
@@ -723,7 +723,7 @@ TEST(SoialibTest, ReserializeFloat32) {
                   .ExpectBytes("00")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"float32\"\n  }\n}")
+                      "\"value\": \"float32\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer<float>(-0.0)
@@ -792,7 +792,7 @@ TEST(SoialibTest, ReserializeFloat64) {
                   .ExpectBytes("00")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"float64\"\n  }\n}")
+                      "\"value\": \"float64\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer<double>(-0.0)
@@ -864,7 +864,7 @@ TEST(SoialibTest, ReserializeTimestamp) {
           .ExpectBytes("00")
           .ExpectTypeDescriptorJson(
               "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    \"value\": "
-              "\"timestamp\"\n  }\n}")
+              "\"timestamp\"\n  },\n  \"records\": []\n}")
           .Check(),
       IsOk());
   EXPECT_THAT(MakeReserializer(absl::FromUnixMillis(1738619881001))
@@ -929,7 +929,7 @@ TEST(SoialibTest, ReserializeString) {
                   .AddAlternativeBytes("00")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"string\"\n  }\n}")
+                      "\"value\": \"string\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer(std::string("pokémon"))
@@ -964,7 +964,7 @@ TEST(SoialibTest, ReserializeBytes) {
                   .AddAlternativeJson("0")
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"primitive\",\n    "
-                      "\"value\": \"bytes\"\n  }\n}")
+                      "\"value\": \"bytes\"\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer(soia::ByteString({0, 0x08, 0xFF}))
@@ -989,7 +989,7 @@ TEST(SoialibTest, ReserializeArray) {
           .ExpectTypeDescriptorJson(
               "{\n  \"type\": {\n    \"kind\": \"array\",\n    \"value\": {\n  "
               "    \"item\": {\n        \"kind\": \"primitive\",\n        "
-              "\"value\": \"bool\"\n      }\n    }\n  }\n}")
+              "\"value\": \"bool\"\n      }\n    }\n  },\n  \"records\": []\n}")
           .Check(),
       IsOk());
   EXPECT_THAT(MakeReserializer(std::vector<bool>{true})
@@ -1051,7 +1051,7 @@ TEST(SoialibTest, ReserializeOptional) {
                   .ExpectTypeDescriptorJson(
                       "{\n  \"type\": {\n    \"kind\": \"optional\",\n    "
                       "\"value\": {\n      \"kind\": \"primitive\",\n      "
-                      "\"value\": \"bool\"\n    }\n  }\n}")
+                      "\"value\": \"bool\"\n    }\n  },\n  \"records\": []\n}")
                   .Check(),
               IsOk());
   EXPECT_THAT(MakeReserializer(absl::make_optional(false))

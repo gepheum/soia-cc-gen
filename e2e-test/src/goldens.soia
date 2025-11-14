@@ -80,6 +80,7 @@ enum TypedValue {
   point: Point;
   color: Color;
   my_enum: MyEnum;
+  keyed_arrays: KeyedArrays;
   round_trip_dense_json: TypedValue;
   round_trip_readable_json: TypedValue;
   round_trip_bytes: TypedValue;
@@ -119,6 +120,19 @@ enum MyEnum {
   color: Color = 4;
   bool: bool = 5;
   removed 2;
+}
+
+struct KeyedArrays {
+  enum Weekday {
+    MONDAY;
+  }
+  struct SubItem {
+    weekday: Weekday;
+  }
+  struct Item {
+    sub_item: SubItem;
+  }
+  items: [Item|sub_item.weekday.kind];
 }
 
 const UNIT_TESTS: [UnitTest] = [
@@ -216,6 +230,7 @@ const UNIT_TESTS: [UnitTest] = [
         ],
         expected_readable_json: [
           '{\n  "unix_millis": 0,\n  "formatted": "1970-01-01T00:00:00.000Z"\n}',
+          '{\n  "unix_millis": 0,\n  "formatted": "1970-01-01T00:00:00Z"\n}',
         ],
         expected_bytes: [
           "hex:736f696100",
@@ -288,6 +303,10 @@ const UNIT_TESTS: [UnitTest] = [
           {
             kind: "literal",
             value: "\"2\"",
+          },
+          {
+            kind: "literal",
+            value: "2.0",
           },
         ],
         alternative_bytes: [
@@ -576,6 +595,12 @@ const UNIT_TESTS: [UnitTest] = [
         expected_readable_json: [
           "888888888888",
         ],
+        alternative_jsons: [
+          {
+            kind: "literal",
+            value: "888888888888.0",
+          },
+        ],
         expected_bytes: [
           "hex:736f6961ee380ee8f5ce000000",
         ],
@@ -723,6 +748,12 @@ const UNIT_TESTS: [UnitTest] = [
         ],
         expected_readable_json: [
           "255",
+        ],
+        alternative_jsons: [
+          {
+            kind: "literal",
+            value: "255.0",
+          },
         ],
         expected_bytes: [
           "hex:736f6961e8ff00",
@@ -1220,7 +1251,7 @@ const UNIT_TESTS: [UnitTest] = [
             },
           },
         ],
-        expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:Point\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:Point\",\n      \"fields\": [\n        {\n          \"name\": \"x\",\n          \"number\": 1,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"y\",\n          \"number\": 4,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"color\",\n          \"number\": 6,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:Color\"\n          }\n        }\n      ],\n      \"removed_fields\": [\n        0,\n        2,\n        3,\n        5\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:Color\",\n      \"fields\": [\n        {\n          \"name\": \"r\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"g\",\n          \"number\": 1,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"b\",\n          \"number\": 2,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        }\n      ],\n      \"removed_fields\": [\n        3\n      ]\n    }\n  ]\n}",
+        expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:Point\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:Point\",\n      \"fields\": [\n        {\n          \"name\": \"x\",\n          \"number\": 1,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"y\",\n          \"number\": 4,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"color\",\n          \"number\": 6,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:Color\"\n          }\n        }\n      ],\n      \"removed_numbers\": [\n        0,\n        2,\n        3,\n        5\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:Color\",\n      \"fields\": [\n        {\n          \"name\": \"r\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"g\",\n          \"number\": 1,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"b\",\n          \"number\": 2,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        }\n      ],\n      \"removed_numbers\": [\n        3\n      ]\n    }\n  ]\n}",
       |},
     },
   },
@@ -1271,7 +1302,7 @@ const UNIT_TESTS: [UnitTest] = [
         expected_bytes: [
           "hex:736f696100",
         ],
-        expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:MyEnum\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"enum\",\n      \"id\": \"goldens.soia:MyEnum\",\n      \"fields\": [\n        {\n          \"name\": \"OK\",\n          \"number\": 1\n        },\n        {\n          \"name\": \"color\",\n          \"number\": 4,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:Color\"\n          }\n        },\n        {\n          \"name\": \"bool\",\n          \"number\": 5,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"bool\"\n          }\n        }\n      ],\n      \"removed_fields\": [\n        2\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:Color\",\n      \"fields\": [\n        {\n          \"name\": \"r\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"g\",\n          \"number\": 1,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"b\",\n          \"number\": 2,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        }\n      ],\n      \"removed_fields\": [\n        3\n      ]\n    }\n  ]\n}",
+        expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:MyEnum\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"enum\",\n      \"id\": \"goldens.soia:MyEnum\",\n      \"fields\": [\n        {\n          \"name\": \"OK\",\n          \"number\": 1\n        },\n        {\n          \"name\": \"color\",\n          \"number\": 4,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:Color\"\n          }\n        },\n        {\n          \"name\": \"bool\",\n          \"number\": 5,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"bool\"\n          }\n        }\n      ],\n      \"removed_numbers\": [\n        2\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:Color\",\n      \"fields\": [\n        {\n          \"name\": \"r\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"g\",\n          \"number\": 1,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        },\n        {\n          \"name\": \"b\",\n          \"number\": 2,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"int32\"\n          }\n        }\n      ],\n      \"removed_numbers\": [\n        3\n      ]\n    }\n  ]\n}",
       |},
     },
   },
@@ -2149,6 +2180,28 @@ const UNIT_TESTS: [UnitTest] = [
         expected_bytes: [
           "hex:736f6961f1000000000000f0ff",
         ],
+      |},
+    },
+  },
+  {
+    test_number: 1084,
+    assertion: {
+      kind: "reserialize_value",
+      value: {|
+        value: {
+          kind: "keyed_arrays",
+          value: {||},
+        },
+        expected_dense_json: [
+          "[]",
+        ],
+        expected_readable_json: [
+          "{}",
+        ],
+        expected_bytes: [
+          "hex:736f6961f6",
+        ],
+        expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:KeyedArrays\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:KeyedArrays\",\n      \"fields\": [\n        {\n          \"name\": \"items\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"array\",\n            \"value\": {\n              \"item\": {\n                \"kind\": \"record\",\n                \"value\": \"goldens.soia:KeyedArrays.Item\"\n              },\n              \"key_extractor\": \"sub_item.weekday.kind\"\n            }\n          }\n        }\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:KeyedArrays.Item\",\n      \"fields\": [\n        {\n          \"name\": \"sub_item\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:KeyedArrays.SubItem\"\n          }\n        }\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:KeyedArrays.SubItem\",\n      \"fields\": [\n        {\n          \"name\": \"weekday\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:KeyedArrays.Weekday\"\n          }\n        }\n      ]\n    },\n    {\n      \"kind\": \"enum\",\n      \"id\": \"goldens.soia:KeyedArrays.Weekday\",\n      \"fields\": [\n        {\n          \"name\": \"MONDAY\",\n          \"number\": 1\n        }\n      ]\n    }\n  ]\n}",
       |},
     },
   },
