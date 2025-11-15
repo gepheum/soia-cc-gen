@@ -119,7 +119,7 @@ class DepsCollector {
         if (record.modulePath !== this.modulePath) break;
         if (this.deps.has(recordKey)) break;
         this.deps.add(recordKey);
-        // Value fields of enums are allocated on the heap.
+        // Wrapper fields of enums are allocated on the heap.
         if (record.record.recordType === "enum") break;
         for (const field of record.record.fields) {
           if (!field.type) continue;

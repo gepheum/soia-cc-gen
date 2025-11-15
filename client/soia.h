@@ -853,10 +853,10 @@ struct enum_const_field {
   using const_type = Const;
 };
 
-// For static reflection: represents a value field of a soia enum.
+// For static reflection: represents a wrapper field of a soia enum.
 // See `soia::reflection::ForEachField`
 template <typename Option, typename Value>
-struct enum_value_field {
+struct enum_wrapper_field {
   using option_type = Option;
   using value_type = Value;
 };
@@ -991,7 +991,7 @@ using struct_field =
     soia::reflection::struct_field<Getter, getter_value_type<Struct, Getter>>;
 
 template <typename Enum, typename Option>
-using enum_value_field = soia::reflection::enum_value_field<
+using enum_wrapper_field = soia::reflection::enum_wrapper_field<
     Option, std::remove_const_t<std::remove_pointer_t<
                 decltype(Option::get_or_null(std::declval<Enum&>()))>>>;
 
@@ -2439,7 +2439,7 @@ constexpr bool IsRecord() {
 
 // Calls f(field) for each field in the soia-generated datatype.
 // The type of the single argument passed to f is one of: struct_field,
-// enum_const_field, enum_value_field.
+// enum_const_field, enum_wrapper_field.
 template <typename Record, typename F>
 void ForEachField(F&& f) {
   static_assert(IsStruct<Record>() || IsEnum<Record>());

@@ -706,14 +706,14 @@ class CcLibFilesGenerator {
     const { nestedRecords } = record.record;
     const fields = getEnumFields(record.record.fields, typeSpeller);
     const constFields = fields.filter((f) => !f.valueType);
-    const valueFields = fields.filter((f) => f.valueType);
-    const pointerFields = valueFields.filter((f) => f.usePointer);
+    const wrapperFields = fields.filter((f) => f.valueType);
+    const pointerFields = wrapperFields.filter((f) => f.usePointer);
 
     for (const field of constFields) {
       this.writeCodeForConstantField(field);
     }
-    for (const field of valueFields) {
-      this.writeCodeForValueField(field);
+    for (const field of wrapperFields) {
+      this.writeCodeForWrapperField(field);
     }
 
     const className = getClassName(record);
@@ -725,7 +725,7 @@ class CcLibFilesGenerator {
 
     header.mainMiddle.push(`class ${className} {`);
     header.mainMiddle.push(" public:");
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const type = `::soiagen::${field.structType}<${field.valueType}>`;
       header.mainMiddle.push(`  using ${field.typeAlias} = ${type};`);
     }
@@ -753,7 +753,7 @@ class CcLibFilesGenerator {
     source.mainMiddle.push(`${className}::${className}(${className}&& other)`);
     source.mainMiddle.push(`    : kind_(other.kind_),`);
     source.mainMiddle.push(`      value_(other.value_) {`);
-    source.mainMiddle.push("  other.kind_ = kind_type::kConstUnknown;");
+    source.mainMiddle.push("  other.kind_ = kind_type::kUnknown;");
     source.mainMiddle.push("  other.value_._unrecognized = nullptr;");
     source.mainMiddle.push("}");
     source.mainMiddle.push("");
@@ -771,7 +771,7 @@ class CcLibFilesGenerator {
       );
     }
     source.mainMiddle.push("");
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { fieldName, kindEnumerator, typeAlias, usePointer } = field;
       header.mainMiddle.push(`  ${className}(${typeAlias});`);
       source.mainMiddle.push(`${className}::${className}(${typeAlias} w)`);
@@ -790,7 +790,7 @@ class CcLibFilesGenerator {
       source.mainMiddle.push(
         `${className}::${
           className
-        }(unrecognized_enum u) : kind_(kind_type::kConstUnknown) {`,
+        }(unrecognized_enum u) : kind_(kind_type::kUnknown) {`,
       );
       source.mainMiddle.push(
         "  value_._unrecognized = new unrecognized_enum(std::move(u));",
@@ -812,7 +812,7 @@ class CcLibFilesGenerator {
       );
     }
     header.mainMiddle.push("");
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { identifier, usePointer, valueType } = field;
       header.mainMiddle.push(
         `  static ${className} ${identifier}(${valueType} value);`,
@@ -829,7 +829,7 @@ class CcLibFilesGenerator {
     header.mainMiddle.push("");
     header.mainMiddle.push("  kind_type kind() const { return kind_; }");
     header.mainMiddle.push("");
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { fieldName, kindEnumerator, usePointer, valueType } = field;
       header.mainMiddle.push(`  inline bool is_${fieldName}() const;`);
       header.mainMiddle.push(
@@ -899,7 +899,7 @@ class CcLibFilesGenerator {
     source.mainMiddle.push("  free_value();");
     source.mainMiddle.push("  kind_ = other.kind_;");
     source.mainMiddle.push("  value_ = other.value_;");
-    source.mainMiddle.push("  other.kind_ = kind_type::kConstUnknown;");
+    source.mainMiddle.push("  other.kind_ = kind_type::kUnknown;");
     source.mainMiddle.push("  other.value_._unrecognized = nullptr;");
     source.mainMiddle.push("  return *this;");
     source.mainMiddle.push("}");
@@ -922,7 +922,7 @@ class CcLibFilesGenerator {
       source.mainMiddle.push("}");
       source.mainMiddle.push("");
     }
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { fieldName, kindEnumerator, typeAlias, usePointer } = field;
       header.mainMiddle.push(`  ${className}& operator=(${typeAlias});`);
       source.mainMiddle.push(
@@ -943,7 +943,7 @@ class CcLibFilesGenerator {
     }
     header.mainMiddle.push("");
 
-    if (valueFields.length) {
+    if (wrapperFields.length) {
       header.mainMiddle.push(`  bool operator==(const ${className}&) const;`);
 
       source.mainMiddle.push(
@@ -951,7 +951,7 @@ class CcLibFilesGenerator {
       );
       source.mainMiddle.push("  if (other.kind_ != kind_) return false;");
       source.mainMiddle.push("  switch (kind_) {");
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { fieldName, kindEnumerator, usePointer } = field;
         const dotOrStar = usePointer ? "->" : ".";
         const a = `value_.${fieldName}_${dotOrStar}value`;
@@ -1000,7 +1000,7 @@ class CcLibFilesGenerator {
     header.mainMiddle.push("  union value_wrapper {");
     header.mainMiddle.push("    value_wrapper() {}");
     header.mainMiddle.push("    unrecognized_enum* _unrecognized;");
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { fieldName, typeAlias } = field;
       const maybeStar = field.usePointer ? "*" : "";
       header.mainMiddle.push(`    ${typeAlias}${maybeStar} ${fieldName}_;`);
@@ -1015,7 +1015,7 @@ class CcLibFilesGenerator {
     );
     source.mainMiddle.push("  kind_ = other.kind_;");
     source.mainMiddle.push("  switch (other.kind_) {");
-    source.mainMiddle.push("    case kind_type::kConstUnknown: {");
+    source.mainMiddle.push("    case kind_type::kUnknown: {");
     source.mainMiddle.push(
       "      const unrecognized_enum* u = other.value_._unrecognized;",
     );
@@ -1024,7 +1024,7 @@ class CcLibFilesGenerator {
     );
     source.mainMiddle.push("      break;");
     source.mainMiddle.push("    }");
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { fieldName, kindEnumerator, typeAlias, usePointer } = field;
       source.mainMiddle.push(`    case kind_type::${kindEnumerator}:`);
       if (usePointer) {
@@ -1046,7 +1046,7 @@ class CcLibFilesGenerator {
 
     source.mainMiddle.push(`void ${className}::free_value() const {`);
     source.mainMiddle.push("  switch (kind_) {");
-    source.mainMiddle.push("    case kind_type::kConstUnknown:");
+    source.mainMiddle.push("    case kind_type::kUnknown:");
     source.mainMiddle.push(
       "      ::std::unique_ptr<unrecognized_enum>(value_._unrecognized);",
     );
@@ -1079,7 +1079,7 @@ class CcLibFilesGenerator {
         }());`,
       );
     }
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { fieldName, kindEnumerator, usePointer } = field;
       const maybeStar = usePointer ? "*" : "";
       header.mainMiddle.push(`      case kind_type::${kindEnumerator}:`);
@@ -1141,7 +1141,7 @@ class CcLibFilesGenerator {
       header.mainBottom.push(`      return H::combine(std::move(h), ${hash});`);
       header.mainBottom.push("    }");
     }
-    for (const field of valueFields) {
+    for (const field of wrapperFields) {
       const { fieldName, typeAlias } = field;
       header.mainBottom.push(
         `    H operator()(const ${className}::${typeAlias}& w) {`,
@@ -1198,7 +1198,7 @@ class CcLibFilesGenerator {
         source.internalMain.push("      break;");
         source.internalMain.push("    }");
       }
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { fieldName, fieldNumber, kindEnumerator, usePointer } = field;
         const dotOrArrow = usePointer ? "->" : ".";
         source.internalMain.push(
@@ -1236,7 +1236,7 @@ class CcLibFilesGenerator {
         source.internalMain.push(`      out.out += "\\"${fieldName}\\"";`);
         source.internalMain.push("    }");
       }
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { fieldName, typeAlias } = field;
         source.internalMain.push(
           `    void operator()(const type::${typeAlias}& w) {`,
@@ -1277,7 +1277,7 @@ class CcLibFilesGenerator {
         source.internalMain.push(`      out.out += "soiagen::${identifier}";`);
         source.internalMain.push("    }");
       }
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { identifier, typeAlias } = field;
         source.internalMain.push(
           `    void operator()(const ${qualifiedName}::${typeAlias}& w) {`,
@@ -1319,7 +1319,7 @@ class CcLibFilesGenerator {
         source.internalMain.push("      break;");
         source.internalMain.push("    }");
       }
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { fieldName, fieldNumber, kindEnumerator, usePointer } = field;
         const intLiterals = bytesToIntLiterals(
           1 <= fieldNumber && fieldNumber <= 4
@@ -1404,7 +1404,7 @@ class CcLibFilesGenerator {
       source.internalMain.push("      EnumJsonArrayParser parser(&tokenizer);");
       source.internalMain.push("      const int number = parser.ReadNumber();");
       source.internalMain.push("      switch (number) {");
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { fieldNumber, typeAlias } = field;
         source.internalMain.push(`        case ${fieldNumber}: {`);
         source.internalMain.push(`          type::${typeAlias} wrapper;`);
@@ -1439,7 +1439,7 @@ class CcLibFilesGenerator {
       source.internalMain.push("    case JsonTokenType::kLeftCurlyBracket: {");
       const parserExpr =
         "(new EnumJsonObjectParser<type>())" +
-        valueFields
+        wrapperFields
           .map((field) => {
             const { fieldName, typeAlias } = field;
             const indent = "              ";
@@ -1471,7 +1471,7 @@ class CcLibFilesGenerator {
       );
       source.internalMain.push("  if (has_value) {");
       source.internalMain.push("    switch (number) {");
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { fieldNumber, typeAlias } = field;
         source.internalMain.push(`      case ${fieldNumber}: {`);
         source.internalMain.push(`        type::${typeAlias} wrapper;`);
@@ -1566,7 +1566,7 @@ class CcLibFilesGenerator {
         source.internalMain.push(`              absl::nullopt,`);
         source.internalMain.push("          },");
       }
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { fieldName, fieldNumber, valueTypeWithNamespace } = field;
         source.internalMain.push("          {");
         source.internalMain.push(`              "${fieldName}",`);
@@ -1581,7 +1581,7 @@ class CcLibFilesGenerator {
       source.internalMain.push(`      {${removedNumbers}},`);
       source.internalMain.push("  };");
       source.internalMain.push("  registry.push_back(std::move(record));");
-      for (const field of valueFields) {
+      for (const field of wrapperFields) {
         const { valueTypeWithNamespace } = field;
         source.internalMain.push(
           `  soia_internal::RegisterRecords<${
@@ -1612,7 +1612,7 @@ class CcLibFilesGenerator {
         if (recordType === "struct") {
           return `struct_field<type, soiagen::get_${fieldName}<>>`;
         } else if (f.type) {
-          return `enum_value_field<type, soiagen::reflection::${fieldName}_option>`;
+          return `enum_wrapper_field<type, soiagen::reflection::${fieldName}_option>`;
         } else {
           return `soia::reflection::enum_const_field<soiagen::k_${fieldName.toLowerCase()}>`;
         }
@@ -1682,7 +1682,7 @@ class CcLibFilesGenerator {
     soiagen.push("");
   }
 
-  private writeCodeForValueField(field: EnumField): void {
+  private writeCodeForWrapperField(field: EnumField): void {
     const { fieldName, structType } = field;
     if (!this.addSoiagenSymbol(structType)) return;
     const optionType = `${fieldName}_option`;

@@ -225,12 +225,12 @@ TEST(SoiagenTest, StatusEnumSimpleOps) {
   EXPECT_NE(StatusEnum(soiagen::kOk), soiagen::kUnknown);
   StatusEnum e;
   EXPECT_EQ(e, soiagen::kUnknown);
-  EXPECT_EQ(e.kind(), StatusEnum::kind_type::kConstUnknown);
+  EXPECT_EQ(e.kind(), StatusEnum::kind_type::kUnknown);
   e = soiagen::kOk;
   EXPECT_EQ(e, soiagen::kOk);
-  EXPECT_EQ(e.kind(), StatusEnum::kind_type::kConstOk);
+  EXPECT_EQ(e.kind(), StatusEnum::kind_type::kOkConst);
   e = StatusEnum::wrap_error("E");
-  EXPECT_EQ(e.kind(), StatusEnum::kind_type::kValError);
+  EXPECT_EQ(e.kind(), StatusEnum::kind_type::kErrorWrapper);
   ASSERT_TRUE(e.is_error());
   EXPECT_EQ(e.as_error(), "E");
   e.as_error() = "EE";
@@ -588,7 +588,7 @@ struct FieldNameCollector {
   }
 
   template <typename Option, typename Value>
-  void operator()(soia::reflection::enum_value_field<Option, Value>) {
+  void operator()(soia::reflection::enum_wrapper_field<Option, Value>) {
     field_names.insert(Option::kFieldName);
   }
 };

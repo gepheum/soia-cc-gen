@@ -21,8 +21,9 @@ interface MutableEnumField {
   /** kConstField or kValField */
   readonly kindEnumerator: string;
   /**
-   * True if the field is a value field and the value should be allocated on the
-   * heap.
+   * True if the field is a wrapper field and the value should be allocated on
+   * the
+   heap.
    */
   readonly usePointer: boolean;
 }
@@ -38,7 +39,7 @@ export function getEnumFields(
   for (const inField of fields) {
     let outField: MutableEnumField;
     if (inField.type) {
-      outField = makeValueField(inField, typeSpeller);
+      outField = makeWrapperField(inField, typeSpeller);
     } else {
       outField = makeConstantField(inField.name.text);
     }
@@ -58,7 +59,7 @@ function makeUnknownField(): MutableEnumField {
     structType: `k_unknown`,
     typeAlias: "",
     identifier: `kUnknown`,
-    kindEnumerator: `kConstUnknown`,
+    kindEnumerator: `kUnknown`,
     usePointer: false,
   };
 }
@@ -79,12 +80,12 @@ function makeConstantField(fieldName: string): MutableEnumField {
     structType: `k_${lowerUnderscore}`,
     typeAlias: "",
     identifier: `k${upperCamel}`,
-    kindEnumerator: `kConst${upperCamel}`,
+    kindEnumerator: `k${upperCamel}Const`,
     usePointer: false,
   };
 }
 
-function makeValueField(
+function makeWrapperField(
   field: Field,
   typeSpeller: TypeSpeller,
 ): MutableEnumField {
@@ -102,7 +103,7 @@ function makeValueField(
     structType: `wrap_${fieldName}`,
     typeAlias: `wrap_${fieldName}_type`,
     identifier: `wrap_${fieldName}`,
-    kindEnumerator: `kVal${upperCamel}`,
+    kindEnumerator: `k${upperCamel}Wrapper`,
     usePointer: usePointer(field.type!),
   };
 }

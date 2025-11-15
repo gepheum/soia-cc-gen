@@ -105,47 +105,47 @@ absl::StatusOr<soia::ByteString> EvalBytesExpression(
 absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
     const soiagen_goldens::TypedValue& typed_value) {
   switch (typed_value.kind()) {
-    case soiagen_goldens::TypedValue::kind_type::kValBool:
+    case soiagen_goldens::TypedValue::kind_type::kBoolWrapper:
       return std::make_unique<TypedValueImpl<bool>>(typed_value.as_bool());
-    case soiagen_goldens::TypedValue::kind_type::kValInt32:
+    case soiagen_goldens::TypedValue::kind_type::kInt32Wrapper:
       return std::make_unique<TypedValueImpl<int32_t>>(typed_value.as_int32());
-    case soiagen_goldens::TypedValue::kind_type::kValInt64:
+    case soiagen_goldens::TypedValue::kind_type::kInt64Wrapper:
       return std::make_unique<TypedValueImpl<int64_t>>(typed_value.as_int64());
-    case soiagen_goldens::TypedValue::kind_type::kValUint64:
+    case soiagen_goldens::TypedValue::kind_type::kUint64Wrapper:
       return std::make_unique<TypedValueImpl<uint64_t>>(
           typed_value.as_uint64());
-    case soiagen_goldens::TypedValue::kind_type::kValFloat32:
+    case soiagen_goldens::TypedValue::kind_type::kFloat32Wrapper:
       return std::make_unique<TypedValueImpl<float>>(typed_value.as_float32());
-    case soiagen_goldens::TypedValue::kind_type::kValFloat64:
+    case soiagen_goldens::TypedValue::kind_type::kFloat64Wrapper:
       return std::make_unique<TypedValueImpl<double>>(typed_value.as_float64());
-    case soiagen_goldens::TypedValue::kind_type::kValTimestamp:
+    case soiagen_goldens::TypedValue::kind_type::kTimestampWrapper:
       return std::make_unique<TypedValueImpl<absl::Time>>(
           typed_value.as_timestamp());
-    case soiagen_goldens::TypedValue::kind_type::kValString:
+    case soiagen_goldens::TypedValue::kind_type::kStringWrapper:
       return std::make_unique<TypedValueImpl<std::string>>(
           typed_value.as_string());
-    case soiagen_goldens::TypedValue::kind_type::kValBytes:
+    case soiagen_goldens::TypedValue::kind_type::kBytesWrapper:
       return std::make_unique<TypedValueImpl<soia::ByteString>>(
           soia::ByteString(typed_value.as_bytes()));
-    case soiagen_goldens::TypedValue::kind_type::kValBoolOptional:
+    case soiagen_goldens::TypedValue::kind_type::kBoolOptionalWrapper:
       return std::make_unique<TypedValueImpl<absl::optional<bool>>>(
           typed_value.as_bool_optional());
-    case soiagen_goldens::TypedValue::kind_type::kValInts:
+    case soiagen_goldens::TypedValue::kind_type::kIntsWrapper:
       return std::make_unique<TypedValueImpl<std::vector<int32_t>>>(
           typed_value.as_ints());
-    case soiagen_goldens::TypedValue::kind_type::kValPoint:
+    case soiagen_goldens::TypedValue::kind_type::kPointWrapper:
       return std::make_unique<TypedValueImpl<soiagen_goldens::Point>>(
           typed_value.as_point());
-    case soiagen_goldens::TypedValue::kind_type::kValColor:
+    case soiagen_goldens::TypedValue::kind_type::kColorWrapper:
       return std::make_unique<TypedValueImpl<soiagen_goldens::Color>>(
           typed_value.as_color());
-    case soiagen_goldens::TypedValue::kind_type::kValMyEnum:
+    case soiagen_goldens::TypedValue::kind_type::kMyEnumWrapper:
       return std::make_unique<TypedValueImpl<soiagen_goldens::MyEnum>>(
           typed_value.as_my_enum());
-    case soiagen_goldens::TypedValue::kind_type::kValKeyedArrays:
+    case soiagen_goldens::TypedValue::kind_type::kKeyedArraysWrapper:
       return std::make_unique<TypedValueImpl<soiagen_goldens::KeyedArrays>>(
           typed_value.as_keyed_arrays());
-    case soiagen_goldens::TypedValue::kind_type::kValRoundTripDenseJson: {
+    case soiagen_goldens::TypedValue::kind_type::kRoundTripDenseJsonWrapper: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> other =
           EvalTypedValue(typed_value.as_round_trip_dense_json());
       if (!other.ok()) {
@@ -153,7 +153,8 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       }
       return (*other)->RoundTripDenseJson();
     }
-    case soiagen_goldens::TypedValue::kind_type::kValRoundTripReadableJson: {
+    case soiagen_goldens::TypedValue::kind_type::
+        kRoundTripReadableJsonWrapper: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> other =
           EvalTypedValue(typed_value.as_round_trip_readable_json());
       if (!other.ok()) {
@@ -161,7 +162,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       }
       return (*other)->RoundTripReadableJson();
     }
-    case soiagen_goldens::TypedValue::kind_type::kValRoundTripBytes: {
+    case soiagen_goldens::TypedValue::kind_type::kRoundTripBytesWrapper: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> other =
           EvalTypedValue(typed_value.as_round_trip_bytes());
       if (!other.ok()) {
@@ -170,7 +171,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return (*other)->RoundTripBytes();
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValPointFromJsonKeepUnrecognized: {
+        kPointFromJsonKeepUnrecognizedWrapper: {
       const absl::StatusOr<std::string> string_expression =
           EvalStringExpression(
               typed_value.as_point_from_json_keep_unrecognized());
@@ -186,7 +187,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Point>>(*point);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValPointFromJsonDropUnrecognized: {
+        kPointFromJsonDropUnrecognizedWrapper: {
       const absl::StatusOr<std::string> string_expression =
           EvalStringExpression(
               typed_value.as_point_from_json_drop_unrecognized());
@@ -202,7 +203,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Point>>(*point);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValPointFromBytesKeepUnrecognized: {
+        kPointFromBytesKeepUnrecognizedWrapper: {
       const absl::StatusOr<soia::ByteString> bytes_expression =
           EvalBytesExpression(
               typed_value.as_point_from_bytes_keep_unrecognized());
@@ -219,7 +220,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Point>>(*point);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValPointFromBytesDropUnrecognized: {
+        kPointFromBytesDropUnrecognizedWrapper: {
       const absl::StatusOr<soia::ByteString> bytes_expression =
           EvalBytesExpression(
               typed_value.as_point_from_bytes_drop_unrecognized());
@@ -236,7 +237,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Point>>(*point);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValColorFromJsonKeepUnrecognized: {
+        kColorFromJsonKeepUnrecognizedWrapper: {
       const absl::StatusOr<std::string> string_expression =
           EvalStringExpression(
               typed_value.as_color_from_json_keep_unrecognized());
@@ -252,7 +253,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Color>>(*color);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValColorFromJsonDropUnrecognized: {
+        kColorFromJsonDropUnrecognizedWrapper: {
       const absl::StatusOr<std::string> string_expression =
           EvalStringExpression(
               typed_value.as_color_from_json_drop_unrecognized());
@@ -268,7 +269,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Color>>(*color);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValColorFromBytesKeepUnrecognized: {
+        kColorFromBytesKeepUnrecognizedWrapper: {
       const absl::StatusOr<soia::ByteString> bytes_expression =
           EvalBytesExpression(
               typed_value.as_color_from_bytes_keep_unrecognized());
@@ -285,7 +286,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Color>>(*color);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValColorFromBytesDropUnrecognized: {
+        kColorFromBytesDropUnrecognizedWrapper: {
       const absl::StatusOr<soia::ByteString> bytes_expression =
           EvalBytesExpression(
               typed_value.as_color_from_bytes_drop_unrecognized());
@@ -302,7 +303,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::Color>>(*color);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValMyEnumFromJsonKeepUnrecognized: {
+        kMyEnumFromJsonKeepUnrecognizedWrapper: {
       const absl::StatusOr<std::string> string_expression =
           EvalStringExpression(
               typed_value.as_my_enum_from_json_keep_unrecognized());
@@ -319,7 +320,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
           *my_enum);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValMyEnumFromJsonDropUnrecognized: {
+        kMyEnumFromJsonDropUnrecognizedWrapper: {
       const absl::StatusOr<std::string> string_expression =
           EvalStringExpression(
               typed_value.as_my_enum_from_json_drop_unrecognized());
@@ -336,7 +337,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
           *my_enum);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValMyEnumFromBytesKeepUnrecognized: {
+        kMyEnumFromBytesKeepUnrecognizedWrapper: {
       const absl::StatusOr<soia::ByteString> bytes_expression =
           EvalBytesExpression(
               typed_value.as_my_enum_from_bytes_keep_unrecognized());
@@ -354,7 +355,7 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
           *my_enum);
     }
     case soiagen_goldens::TypedValue::kind_type::
-        kValMyEnumFromBytesDropUnrecognized: {
+        kMyEnumFromBytesDropUnrecognizedWrapper: {
       const absl::StatusOr<soia::ByteString> bytes_expression =
           EvalBytesExpression(
               typed_value.as_my_enum_from_bytes_drop_unrecognized());
@@ -371,16 +372,16 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
       return std::make_unique<TypedValueImpl<soiagen_goldens::MyEnum>>(
           *my_enum);
     }
-    case soiagen_goldens::TypedValue::kind_type::kConstUnknown:
+    case soiagen_goldens::TypedValue::kind_type::kUnknown:
       return absl::InvalidArgumentError("Unknown TypedValue kind");
   }
 }
 
 absl::StatusOr<std::string> EvalStringExpression(const StringExpression& expr) {
   switch (expr.kind()) {
-    case StringExpression::kind_type::kValLiteral:
+    case StringExpression::kind_type::kLiteralWrapper:
       return expr.as_literal();
-    case StringExpression::kind_type::kValToDenseJson: {
+    case StringExpression::kind_type::kToDenseJsonWrapper: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> typed_value =
           EvalTypedValue(expr.as_to_dense_json());
       if (!typed_value.ok()) {
@@ -388,7 +389,7 @@ absl::StatusOr<std::string> EvalStringExpression(const StringExpression& expr) {
       }
       return (*typed_value)->ToDenseJson();
     }
-    case StringExpression::kind_type::kValToReadableJson: {
+    case StringExpression::kind_type::kToReadableJsonWrapper: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> typed_value =
           EvalTypedValue(expr.as_to_readable_json());
       if (!typed_value.ok()) {
@@ -396,7 +397,7 @@ absl::StatusOr<std::string> EvalStringExpression(const StringExpression& expr) {
       }
       return (*typed_value)->ToReadableJson();
     }
-    case StringExpression::kind_type::kConstUnknown: {
+    case StringExpression::kind_type::kUnknown: {
       return absl::InvalidArgumentError("Unknown StringExpression kind");
     }
   }
@@ -406,9 +407,9 @@ absl::StatusOr<std::string> EvalStringExpression(const StringExpression& expr) {
 absl::StatusOr<soia::ByteString> EvalBytesExpression(
     const BytesExpression& expr) {
   switch (expr.kind()) {
-    case BytesExpression::kind_type::kValLiteral:
+    case BytesExpression::kind_type::kLiteralWrapper:
       return expr.as_literal();
-    case BytesExpression::kind_type::kValToBytes: {
+    case BytesExpression::kind_type::kToBytesWrapper: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> typed_value =
           EvalTypedValue(expr.as_to_bytes());
       if (!typed_value.ok()) {
@@ -416,7 +417,7 @@ absl::StatusOr<soia::ByteString> EvalBytesExpression(
       }
       return (*typed_value)->ToBytes();
     }
-    case BytesExpression::kind_type::kConstUnknown: {
+    case BytesExpression::kind_type::kUnknown: {
       return absl::InvalidArgumentError("Unknown BytesExpression kind");
     }
   }
@@ -650,35 +651,35 @@ TEST(SoiaGoldensTest, AllTests) {
     const Assertion& assertion = test.assertion;
 
     switch (assertion.kind()) {
-      case Assertion::kind_type::kValReserializeValue:
+      case Assertion::kind_type::kReserializeValueWrapper:
         ExecuteReserializeValue(assertion.as_reserialize_value());
         break;
 
-      case Assertion::kind_type::kValReserializeLargeString:
+      case Assertion::kind_type::kReserializeLargeStringWrapper:
         ExecuteReserializeLargeString(assertion.as_reserialize_large_string());
         break;
 
-      case Assertion::kind_type::kValReserializeLargeArray:
+      case Assertion::kind_type::kReserializeLargeArrayWrapper:
         ExecuteReserializeLargeArray(assertion.as_reserialize_large_array());
         break;
 
-      case Assertion::kind_type::kValBytesEqual:
+      case Assertion::kind_type::kBytesEqualWrapper:
         ExecuteBytesEqual(assertion.as_bytes_equal());
         break;
 
-      case Assertion::kind_type::kValBytesIn:
+      case Assertion::kind_type::kBytesInWrapper:
         ExecuteBytesIn(assertion.as_bytes_in());
         break;
 
-      case Assertion::kind_type::kValStringEqual:
+      case Assertion::kind_type::kStringEqualWrapper:
         ExecuteStringEqual(assertion.as_string_equal());
         break;
 
-      case Assertion::kind_type::kValStringIn:
+      case Assertion::kind_type::kStringInWrapper:
         ExecuteStringIn(assertion.as_string_in());
         break;
 
-      case Assertion::kind_type::kConstUnknown:
+      case Assertion::kind_type::kUnknown:
         FAIL() << "Unknown assertion kind";
     }
   }
