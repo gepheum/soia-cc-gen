@@ -81,6 +81,8 @@ enum TypedValue {
   color: Color;
   my_enum: MyEnum;
   keyed_arrays: KeyedArrays;
+  rec_struct: RecStruct;
+  rec_enum: RecEnum;
   round_trip_dense_json: TypedValue;
   round_trip_readable_json: TypedValue;
   round_trip_bytes: TypedValue;
@@ -133,6 +135,16 @@ struct KeyedArrays {
     sub_item: SubItem;
   }
   items: [Item|sub_item.weekday.kind];
+}
+
+struct RecStruct {
+  a: RecStruct;
+  b: bool;
+}
+
+enum RecEnum {
+  FOO;
+  e: RecEnum;
 }
 
 const UNIT_TESTS: [UnitTest] = [
@@ -2202,6 +2214,61 @@ const UNIT_TESTS: [UnitTest] = [
           "hex:736f6961f6",
         ],
         expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:KeyedArrays\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:KeyedArrays\",\n      \"fields\": [\n        {\n          \"name\": \"items\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"array\",\n            \"value\": {\n              \"item\": {\n                \"kind\": \"record\",\n                \"value\": \"goldens.soia:KeyedArrays.Item\"\n              },\n              \"key_extractor\": \"sub_item.weekday.kind\"\n            }\n          }\n        }\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:KeyedArrays.Item\",\n      \"fields\": [\n        {\n          \"name\": \"sub_item\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:KeyedArrays.SubItem\"\n          }\n        }\n      ]\n    },\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:KeyedArrays.SubItem\",\n      \"fields\": [\n        {\n          \"name\": \"weekday\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:KeyedArrays.Weekday\"\n          }\n        }\n      ]\n    },\n    {\n      \"kind\": \"enum\",\n      \"id\": \"goldens.soia:KeyedArrays.Weekday\",\n      \"fields\": [\n        {\n          \"name\": \"MONDAY\",\n          \"number\": 1\n        }\n      ]\n    }\n  ]\n}",
+      |},
+    },
+  },
+  {
+    test_number: 1085,
+    assertion: {
+      kind: "reserialize_value",
+      value: {|
+        value: {
+          kind: "rec_struct",
+          value: {
+            a: {|
+              b: true,
+            |},
+            b: true,
+          },
+        },
+        expected_dense_json: [
+          "[[[],1],1]",
+        ],
+        expected_readable_json: [
+          "{\n  \"a\": {\n    \"b\": true\n  },\n  \"b\": true\n}",
+        ],
+        expected_bytes: [
+          "hex:736f6961f8f8f60101",
+        ],
+        expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:RecStruct\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"struct\",\n      \"id\": \"goldens.soia:RecStruct\",\n      \"fields\": [\n        {\n          \"name\": \"a\",\n          \"number\": 0,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:RecStruct\"\n          }\n        },\n        {\n          \"name\": \"b\",\n          \"number\": 1,\n          \"type\": {\n            \"kind\": \"primitive\",\n            \"value\": \"bool\"\n          }\n        }\n      ]\n    }\n  ]\n}",
+      |},
+    },
+  },
+  {
+    test_number: 1086,
+    assertion: {
+      kind: "reserialize_value",
+      value: {|
+        value: {
+          kind: "rec_enum",
+          value: {
+            kind: "e",
+            value: {
+              kind: "e",
+              value: "FOO",
+            },
+          },
+        },
+        expected_dense_json: [
+          "[2,[2,1]]",
+        ],
+        expected_readable_json: [
+          "{\n  \"kind\": \"e\",\n  \"value\": {\n    \"kind\": \"e\",\n    \"value\": \"FOO\"\n  }\n}",
+        ],
+        expected_bytes: [
+          "hex:736f6961fcfc01",
+        ],
+        expected_type_descriptor: "{\n  \"type\": {\n    \"kind\": \"record\",\n    \"value\": \"goldens.soia:RecEnum\"\n  },\n  \"records\": [\n    {\n      \"kind\": \"enum\",\n      \"id\": \"goldens.soia:RecEnum\",\n      \"fields\": [\n        {\n          \"name\": \"FOO\",\n          \"number\": 1\n        },\n        {\n          \"name\": \"e\",\n          \"number\": 2,\n          \"type\": {\n            \"kind\": \"record\",\n            \"value\": \"goldens.soia:RecEnum\"\n          }\n        }\n      ]\n    }\n  ]\n}",
       |},
     },
   },

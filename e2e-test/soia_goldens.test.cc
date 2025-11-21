@@ -145,6 +145,12 @@ absl::StatusOr<std::unique_ptr<TypedValue>> EvalTypedValue(
     case soiagen_goldens::TypedValue::kind_type::kKeyedArraysWrapper:
       return std::make_unique<TypedValueImpl<soiagen_goldens::KeyedArrays>>(
           typed_value.as_keyed_arrays());
+    case soiagen_goldens::TypedValue::kind_type::kRecStructWrapper:
+      return std::make_unique<TypedValueImpl<soiagen_goldens::RecStruct>>(
+          typed_value.as_rec_struct());
+    case soiagen_goldens::TypedValue::kind_type::kRecEnumWrapper:
+      return std::make_unique<TypedValueImpl<soiagen_goldens::RecEnum>>(
+          typed_value.as_rec_enum());
     case soiagen_goldens::TypedValue::kind_type::kRoundTripDenseJsonWrapper: {
       const absl::StatusOr<std::unique_ptr<TypedValue>> other =
           EvalTypedValue(typed_value.as_round_trip_dense_json());

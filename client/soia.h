@@ -37,6 +37,7 @@
 
 namespace soia_internal {
 class ByteSink;
+struct RecAdapter;
 
 template <typename T, typename Getter>
 using getter_value_type = std::remove_const_t<
@@ -677,11 +678,15 @@ class rec {
     return *this;
   }
 
-  bool operator==(const rec& other) const { return **this == *other; }
-  bool operator!=(const rec& other) const { return **this != *other; }
+  bool operator==(const rec& other) const {
+    return (value_ == nullptr && other.value_ == nullptr) || **this == *other;
+  }
+  bool operator!=(const rec& other) const { return !(*this == other); }
 
  private:
   std::unique_ptr<T> value_;
+
+  friend struct ::soia_internal::RecAdapter;
 };
 
 template <typename T>
@@ -1970,17 +1975,43 @@ inline ArrayAdapter GetAdapter(soia_type<soia::keyed_items<T, GetKey>>);
 struct RecAdapter {
   template <typename T>
   static bool IsDefault(const soia::rec<T>& input) {
-    return TypeAdapter<T>::IsDefault(*input);
+    return input.value_ == nullptr || TypeAdapter<T>::IsDefault(*input);
   }
 
-  template <typename T, typename Out>
-  static void Append(const soia::rec<T>& input, Out& out) {
-    TypeAdapter<T>::Append(*input, out);
+  template <typename T>
+  static void Append(const soia::rec<T>& input, DenseJson& out) {
+    if (input.value_ == nullptr) {
+      out.out += {'[', ']'};
+    } else {
+      TypeAdapter<T>::Append(*input, out);
+    }
+  }
+
+  template <typename T>
+  static void Append(const soia::rec<T>& input, ReadableJson& out) {
+    if (input.value_ == nullptr) {
+      out.out += {'{', '}'};
+    } else {
+      TypeAdapter<T>::Append(*input, out);
+    }
+  }
+
+  template <typename T>
+  static void Append(const soia::rec<T>& input, DebugString& out) {
+    if (input.value_ == nullptr) {
+      out.out += {'{', '}'};
+    } else {
+      TypeAdapter<T>::Append(*input, out);
+    }
   }
 
   template <typename T>
   static void Append(const soia::rec<T>& input, ByteSink& out) {
-    return TypeAdapter<T>::Append(*input, out);
+    if (input.value_ == nullptr) {
+      out.Push(246);
+    } else {
+      TypeAdapter<T>::Append(*input, out);
+    }
   }
 
   template <typename T>
