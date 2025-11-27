@@ -606,9 +606,11 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
       case '}':
       case ',':
       case ':': {
+        state.token_begin = state.pos;
         return static_cast<JsonTokenType>(*state.pos++);
       }
       case 't': {
+        state.token_begin = state.pos;
         if (state.chars_left() < 4 || state.pos[1] != 'r' ||
             state.pos[2] != 'u' || state.pos[3] != 'e') {
           state.PushErrorAtPosition("JSON token");
@@ -618,6 +620,7 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
         return JsonTokenType::kTrue;
       }
       case 'f': {
+        state.token_begin = state.pos;
         if (state.chars_left() < 5 || state.pos[1] != 'a' ||
             state.pos[2] != 'l' || state.pos[3] != 's' || state.pos[4] != 'e') {
           state.PushErrorAtPosition("JSON token");
@@ -627,6 +630,7 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
         return JsonTokenType::kFalse;
       }
       case 'n': {
+        state.token_begin = state.pos;
         if (state.chars_left() < 4 || state.pos[1] != 'u' ||
             state.pos[2] != 'l' || state.pos[3] != 'l') {
           state.PushErrorAtPosition("JSON token");
@@ -636,6 +640,7 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
         return JsonTokenType::kNull;
       }
       case '-': {
+        state.token_begin = state.pos;
         const char* token_start = state.pos;
         char digit = state.NextCharOrNull();
         if (!IsDigit(digit)) {
@@ -659,6 +664,7 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
       case '7':
       case '8':
       case '9': {
+        state.token_begin = state.pos;
         const char* token_start = state.pos;
         char digit = *token_start;
         uint64_t integral_part = digit - '0';
@@ -669,6 +675,7 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
                                         integral_part);
       }
       case '"': {
+        state.token_begin = state.pos;
         return ParseString(state);
       }
       case '\0': {
@@ -2476,10 +2483,13 @@ absl::Status RequestBody::Parse(absl::string_view request_body) {
     // A JSON object
     JsonTokenizer tokenizer(request_body.begin(), request_body.end(),
                             soia::UnrecognizedFieldsPolicy::kDrop);
+    if (tokenizer.Next() != JsonTokenType::kLeftCurlyBracket) {
+      return absl::InvalidArgumentError("expected: JSON object");
+    }
     JsonObjectReader object_reader(&tokenizer);
     while (object_reader.NextEntry()) {
       if (object_reader.name() == "method") {
-        const JsonTokenType json_token_type = tokenizer.Next();
+        const JsonTokenType json_token_type = tokenizer.state().token_type;
         if (json_token_type == JsonTokenType::kString) {
           method_name = tokenizer.state().string_value;
         } else if (json_token_type == JsonTokenType::kUnsignedInteger ||
@@ -2492,12 +2502,18 @@ absl::Status RequestBody::Parse(absl::string_view request_body) {
           return absl::InvalidArgumentError(
               "'method' field must be a string or an integer");
         }
+        tokenizer.Next();
       } else if (object_reader.name() == "request") {
-        const char* request_begin = ABSL_DIE_IF_NULL(tokenizer.state().pos);
+        const char* absl_nullable request_data_begin =
+            tokenizer.state().token_begin;
         SkipValue(tokenizer);
-        const char* request_end = ABSL_DIE_IF_NULL(tokenizer.state().pos);
+        const char* absl_nullable request_data_end =
+            tokenizer.state().token_begin;
         request_data =
-            absl::string_view(request_begin, request_end - request_begin);
+            request_data_begin != nullptr && request_data_end != nullptr
+                ? absl::string_view(request_data_begin,
+                                    request_data_end - request_data_begin)
+                : absl::string_view();
       } else {
         SkipValue(tokenizer);
       }

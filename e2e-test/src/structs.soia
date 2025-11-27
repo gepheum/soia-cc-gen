@@ -104,6 +104,11 @@ struct RecB {
   a_list: [RecA?]?;
 }
 
+struct Rec {
+  rec: Rec;
+  b: bool;
+}
+
 struct Name {
   struct Name1 {}
   struct Name2 {

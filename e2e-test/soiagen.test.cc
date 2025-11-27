@@ -36,6 +36,7 @@ using ::soiagen_structs::Empty;
 using ::soiagen_structs::EmptyWithRm1;
 using ::soiagen_structs::Item;
 using ::soiagen_structs::KeyedItems;
+using ::soiagen_structs::Rec;
 using ::soiagen_user::User;
 using ::soiagen_vehicles_car::Car;
 using ::testing::ElementsAre;
@@ -617,6 +618,43 @@ TEST(SoiagenTest, ForEachFieldOfStruct) {
   soia::reflection::ForEachField<FullName>(collector);
   EXPECT_THAT(collector.field_names,
               UnorderedElementsAre("first_name", "last_name"));
+}
+
+TEST(SoiagenTest, RecursiveStruct) {
+  absl::flat_hash_set<Rec> recs;
+  recs.insert(Rec{});
+  recs.insert(Rec{});
+  recs.insert(Rec{.b = true});
+  EXPECT_THAT(recs.size(), 2);
+  {
+    Rec rec;
+    rec.rec = Rec{};
+    recs.insert(rec);
+  }
+  EXPECT_THAT(recs.size(), 2);
+  {
+    Rec rec;
+    rec.rec = Rec{};
+    rec.rec->rec = Rec{};
+    rec.b = true;
+    recs.insert(rec);
+  }
+  EXPECT_THAT(recs.size(), 2);
+  {
+    Rec rec;
+    rec.rec = Rec{};
+    rec.rec->rec = Rec{};
+    rec.rec->rec->b = true;
+    recs.insert(rec);
+  }
+  EXPECT_THAT(recs.size(), 3);
+  {
+    Rec rec;
+    rec.rec->rec->b = true;
+    rec.rec->rec->rec->rec->b = false;
+    EXPECT_THAT(soia_internal::ToDebugString(rec),
+                "{\n  .rec: {\n    .rec: {\n      .b: true,\n    },\n  },\n}");
+  }
 }
 
 class FakeServiceImplWithMeta {

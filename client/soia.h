@@ -681,7 +681,7 @@ class rec {
   bool operator==(const rec& other) const {
     return (value_ == nullptr && other.value_ == nullptr) || **this == *other;
   }
-  bool operator!=(const rec& other) const { return !(*this == other); }
+  bool operator!=(const rec& other) const { return !operator==(other); }
 
  private:
   std::unique_ptr<T> value_;
@@ -692,11 +692,6 @@ class rec {
 template <typename T>
 rec<T> make_rec(T value) {
   return rec<T>(std::move(value));
-}
-
-template <typename H, typename T>
-H AbslHashValue(H h, const rec<T>& rec) {
-  return H::combine(std::move(h), *rec);
 }
 
 template <typename O, typename T>
@@ -1213,9 +1208,10 @@ class JsonTokenizer {
   struct State {
     const char* absl_nullable begin = nullptr;
     const char* absl_nullable end = nullptr;
-    // End position of the last token read, or 'begin' if no token has been read
-    // yet.
+    // End position of the last token read, or 'begin' if no token was read.
     const char* absl_nullable pos = nullptr;
+    // Begin position of the last token read, or nullptr if no token was read.
+    const char* absl_nullable token_begin = nullptr;
     absl::Status status = absl::OkStatus();
     JsonTokenType token_type = JsonTokenType::kStrEnd;
     int64_t int_value = 0;
@@ -2443,6 +2439,15 @@ constexpr absl::Time kMinEncodedTimestamp =
 constexpr absl::Time kMaxEncodedTimestamp =
     absl::FromUnixMillis(8640000000000000);
 
+template <typename H, typename T>
+H AbslHashValue(H h, const rec<T>& rec) {
+  if (::soia_internal::RecAdapter::IsDefault(rec)) {
+    return H::combine(std::move(h), -6387689);
+  } else {
+    return H::combine(std::move(h), *rec);
+  }
+}
+
 namespace reflection {
 
 template <typename T>
@@ -2633,10 +2638,11 @@ class HandleRequestOp {
     }
     if (request_body_parsed_.readable) {
       raw_response_->data = soia::ToReadableJson(*output);
+      raw_response_->type = soia::service::ResponseType::kOkJson;
     } else {
       raw_response_->data = soia::ToDenseJson(*output);
+      raw_response_->type = soia::service::ResponseType::kOkJson;
     }
-    raw_response_->type = soia::service::ResponseType::kOkJson;
   }
 };
 
