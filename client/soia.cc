@@ -605,8 +605,9 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
       case '{':
       case '}':
       case ',':
-      case ':':
+      case ':': {
         return static_cast<JsonTokenType>(*state.pos++);
+      }
       case 't': {
         if (state.chars_left() < 4 || state.pos[1] != 'r' ||
             state.pos[2] != 'u' || state.pos[3] != 'e') {
@@ -667,13 +668,16 @@ inline JsonTokenType NextImpl(JsonTokenizer::State& state) {
         return ParseFractionalPart<'+'>(digit, token_start, state,
                                         integral_part);
       }
-      case '"':
+      case '"': {
         return ParseString(state);
-      case '\0':
+      }
+      case '\0': {
         return JsonTokenType::kStrEnd;
-      default:
+      }
+      default: {
         state.PushErrorAtPosition("JSON token");
         return JsonTokenType::kError;
+      }
     }
   }
 }
@@ -2465,23 +2469,54 @@ void ParseUnrecognizedFields(ByteSource& source, size_t array_len,
   }
 }
 
-absl::StatusOr<std::tuple<absl::string_view, absl::string_view,
-                          absl::string_view, absl::string_view>>
-SplitRequestBody(absl::string_view request_body) {
-  const std::vector<absl::string_view> parts =
-      absl::StrSplit(request_body, absl::MaxSplits(':', 3));
-  if (parts.size() != 4) {
-    return absl::InvalidArgumentError("invalid request format");
+absl::Status RequestBody::Parse(absl::string_view request_body) {
+  if (const char first_char = (request_body.empty() ? '\0' : request_body[0]);
+      first_char == '{' || first_char == ' ' || first_char == '\t' ||
+      first_char == '\r' || first_char == '\n') {
+    // A JSON object
+    JsonTokenizer tokenizer(request_body.begin(), request_body.end(),
+                            soia::UnrecognizedFieldsPolicy::kDrop);
+    JsonObjectReader object_reader(&tokenizer);
+    while (object_reader.NextEntry()) {
+      if (object_reader.name() == "method") {
+        const JsonTokenType json_token_type = tokenizer.Next();
+        if (json_token_type == JsonTokenType::kString) {
+          method_name = tokenizer.state().string_value;
+        } else if (json_token_type == JsonTokenType::kUnsignedInteger ||
+                   json_token_type == JsonTokenType::kSignedInteger) {
+          method_number =
+              tokenizer.state().token_type == JsonTokenType::kUnsignedInteger
+                  ? tokenizer.state().uint_value
+                  : tokenizer.state().int_value;
+        } else {
+          return absl::InvalidArgumentError(
+              "'method' field must be a string or an integer");
+        }
+      } else if (object_reader.name() == "request") {
+        const char* request_begin = ABSL_DIE_IF_NULL(tokenizer.state().pos);
+        SkipValue(tokenizer);
+        const char* request_end = ABSL_DIE_IF_NULL(tokenizer.state().pos);
+        request_data =
+            absl::string_view(request_begin, request_end - request_begin);
+      } else {
+        SkipValue(tokenizer);
+      }
+    }
+    return tokenizer.state().status;
+  } else {
+    const std::vector<absl::string_view> parts =
+        absl::StrSplit(request_body, absl::MaxSplits(':', 3));
+    if (parts.size() != 4) {
+      return absl::InvalidArgumentError("invalid request format");
+    }
+    method_name = parts[0];
+    if (!absl::SimpleAtoi(parts[1], &method_number.emplace())) {
+      return absl::InvalidArgumentError("can't parse method number");
+    }
+    readable = parts[2] == "readable";
+    request_data = parts[3];
+    return absl::OkStatus();
   }
-  return std::make_tuple(parts[0], parts[1], parts[2], parts[3]);
-}
-
-absl::StatusOr<int> ParseMethodNumber(absl::string_view method_number_str) {
-  int result = 0;
-  if (!absl::SimpleAtoi(method_number_str, &result)) {
-    return absl::InvalidArgumentError("can't parse method number");
-  }
-  return result;
 }
 
 std::string MethodListToJson(const std::vector<MethodDescriptor>& methods) {

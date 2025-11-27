@@ -1199,8 +1199,8 @@ class JsonTokenizer {
       : keep_unrecognized_fields_(unrecognized_fields ==
                                   soia::UnrecognizedFieldsPolicy::kKeep) {
     state_.begin = json_code_begin;
-    state_.pos = json_code_begin;
     state_.end = json_code_end;
+    state_.pos = json_code_begin;
   }
 
   JsonTokenizer(const JsonTokenizer&) = delete;
@@ -1212,8 +1212,10 @@ class JsonTokenizer {
 
   struct State {
     const char* absl_nullable begin = nullptr;
-    const char* absl_nullable pos = nullptr;
     const char* absl_nullable end = nullptr;
+    // End position of the last token read, or 'begin' if no token has been read
+    // yet.
+    const char* absl_nullable pos = nullptr;
     absl::Status status = absl::OkStatus();
     JsonTokenType token_type = JsonTokenType::kStrEnd;
     int64_t int_value = 0;
@@ -2486,11 +2488,14 @@ void ForEachField(F&& f) {
 
 namespace soia_internal {
 
-absl::StatusOr<std::tuple<absl::string_view, absl::string_view,
-                          absl::string_view, absl::string_view>>
-SplitRequestBody(absl::string_view request_body);
+struct RequestBody {
+  std::string method_name;
+  absl::optional<int> method_number;
+  bool readable = true;
+  absl::string_view request_data;
 
-absl::StatusOr<int> ParseMethodNumber(absl::string_view method_number_str);
+  absl::Status Parse(absl::string_view request_body);
+};
 
 struct MethodDescriptor {
   absl::string_view name;
@@ -2555,31 +2560,17 @@ class HandleRequestOp {
           MethodListToJson(method_descriptors),
           soia::service::ResponseType::kOkJson,
       };
-    } else if (request_body_ == "restudio") {
+    } else if (request_body_ == "debug" || request_body_ == "restudio") {
       return {std::string(kRestudioHtml), soia::service::ResponseType::kOkHtml};
     }
 
-    const auto parts = SplitRequestBody(request_body_);
-    if (!parts.ok()) {
+    if (const absl::Status status = request_body_parsed_.Parse(request_body_);
+        !status.ok()) {
       return {
-          absl::StrCat("bad request: ", parts.status().message()),
+          absl::StrCat("bad request: ", status.message()),
           soia::service::ResponseType::kBadRequest,
       };
     }
-    const absl::string_view method_name = std::get<0>(*parts);
-    const absl::string_view method_number_str = std::get<1>(*parts);
-    format_ = std::get<2>(*parts);
-    request_data_ = std::get<3>(*parts);
-
-    const absl::StatusOr<int> method_number =
-        ParseMethodNumber(method_number_str);
-    if (!method_number.ok()) {
-      return {
-          absl::StrCat("bad request: ", method_number.status().message()),
-          soia::service::ResponseType::kBadRequest,
-      };
-    }
-    method_number_ = *method_number;
 
     std::apply(
         [&](auto... method) {
@@ -2589,9 +2580,11 @@ class HandleRequestOp {
     if (raw_response_.has_value()) {
       return std::move(*raw_response_);
     }
-    return {absl::StrCat("bad request: method not found: ", method_name,
-                         "; number: ", method_number_),
-            soia::service::ResponseType::kBadRequest};
+    return {
+        absl::StrCat(
+            "bad request: method not found: ", request_body_parsed_.method_name,
+            "; number: ", request_body_parsed_.method_number.value_or(-1)),
+        soia::service::ResponseType::kBadRequest};
   }
 
  private:
@@ -2601,9 +2594,7 @@ class HandleRequestOp {
   const RequestMeta& request_meta_;
   ResponseMeta& response_meta_;
 
-  int method_number_ = 0;
-  std::string format_;
-  absl::string_view request_data_;
+  RequestBody request_body_parsed_;
 
   absl::optional<soia::service::RawResponse> raw_response_;
 
@@ -2612,10 +2603,20 @@ class HandleRequestOp {
     using MethodType = decltype(method);
     using RequestType = typename MethodType::request_type;
     using ResponseType = typename MethodType::response_type;
-    if (MethodType::kNumber != method_number_) return;
+    if (request_body_parsed_.method_number.has_value()) {
+      if (MethodType::kNumber != *request_body_parsed_.method_number) return;
+    } else {
+      if (MethodType::kMethodName != request_body_parsed_.method_name) return;
+    }
+    if (raw_response_.has_value()) {
+      // Should only happen if multiple methods have the same name and the
+      // request does not specify the method number. We should probably return
+      // an error in this case.
+      return;
+    }
     raw_response_.emplace();
-    absl::StatusOr<RequestType> request =
-        soia::Parse<RequestType>(request_data_, unrecognized_fields_);
+    absl::StatusOr<RequestType> request = soia::Parse<RequestType>(
+        request_body_parsed_.request_data, unrecognized_fields_);
     if (!request.ok()) {
       raw_response_->data =
           absl::StrCat("bad request: ", request.status().message());
@@ -2630,13 +2631,12 @@ class HandleRequestOp {
       raw_response_->type = soia::service::ResponseType::kServerError;
       return;
     }
-    if (format_ == "readable") {
+    if (request_body_parsed_.readable) {
       raw_response_->data = soia::ToReadableJson(*output);
-      raw_response_->type = soia::service::ResponseType::kOkJson;
     } else {
       raw_response_->data = soia::ToDenseJson(*output);
-      raw_response_->type = soia::service::ResponseType::kOkJson;
     }
+    raw_response_->type = soia::service::ResponseType::kOkJson;
   }
 };
 

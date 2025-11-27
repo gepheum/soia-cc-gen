@@ -118,17 +118,17 @@ if (jade_status.is_trial_start_time()) {
 
 // One way to do an exhaustive switch on an enum.
 switch (lara_status.kind()) {
-  case User::SubscriptionStatus::kind_type::kConstUnknown:
+  case User::SubscriptionStatus::kind_type::kUnknown:
     // UNKNOWN is the default value for an uninitialized SubscriptionStatus.
     // ...
     break;
-  case User::SubscriptionStatus::kind_type::kConstFree:
+  case User::SubscriptionStatus::kind_type::kFreeConst:
     // ...
     break;
-  case User::SubscriptionStatus::kind_type::kConstPremium:
+  case User::SubscriptionStatus::kind_type::kPremiumConst:
     // ...
     break;
-  case User::SubscriptionStatus::kind_type::kValTrialStartTime: {
+  case User::SubscriptionStatus::kind_type::kTrialStartTimeWrapper: {
     const absl::Time& trial_start_time = lara_status.as_trial_start_time();
     std::cout << "Lara's trial started on " << trial_start_time << "\n";
   }
